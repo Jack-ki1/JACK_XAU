@@ -118,22 +118,22 @@ export default function OverviewPage() {
   const rawState = selectedState?.state
   const hasData = rawState === 'bullish' || rawState === 'bearish'
   const isBullish = rawState === 'bullish'
-  const gaugeColor = !hasData ? '#3A434D' : isBullish ? '#34D399' : '#F87171'
+  const gaugeColor = !hasData ? 'var(--border-strong)' : isBullish ? 'var(--bull)' : 'var(--bear)'
   const gaugeDash = hasData ? '465 0' : '0 465'
 
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white">Overview <span className="text-[#3A434D] font-medium">— live market cycle &amp; bias</span></h1>
-        <div className="font-mono text-xs text-[#7C8896] mt-2">Multi-timeframe signal engine · box-chain state across 8 timeframes</div>
+        <h1 className="text-3xl font-bold text-[var(--text-1)]">Overview <span className="text-[var(--border-strong)] font-medium">— live market cycle &amp; bias</span></h1>
+        <div className="font-mono text-xs text-[var(--text-2)] mt-2">Multi-timeframe signal engine · box-chain state across 8 timeframes</div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6">
-          <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-4">Market Cycle</div>
+        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6">
+          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-4">Market Cycle</div>
           <div className="flex flex-col items-center mb-5">
             <svg width="180" height="180" viewBox="0 0 180 180">
-              <circle cx="90" cy="90" r="74" fill="none" stroke="#141A21" strokeWidth="12" />
+              <circle cx="90" cy="90" r="74" fill="none" style={{ stroke: 'var(--bg-raised)' }} strokeWidth="12" />
               <circle
                 cx="90" cy="90" r="74" fill="none"
                 stroke={gaugeColor}
@@ -149,7 +149,7 @@ export default function OverviewPage() {
               <div className="text-lg font-bold tracking-wide" style={{ color: gaugeColor }}>
                 {rawState === 'pending' ? 'PENDING' : !hasData ? '—' : isBullish ? 'BULLISH' : 'BEARISH'}
               </div>
-              <div className="font-mono text-[10px] text-[#7C8896] mt-1">
+              <div className="font-mono text-[10px] text-[var(--text-2)] mt-1">
                 {TIMEFRAMES.find(t => t.key === selectedTf)?.label} box-chain state
               </div>
             </div>
@@ -162,8 +162,8 @@ export default function OverviewPage() {
                 onClick={() => setSelectedTf(tf.key)}
                 className={`font-mono text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                   selectedTf === tf.key
-                    ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 text-white'
-                    : 'border-[#1B232C] text-[#7C8896] hover:border-[#3A434D]'
+                    ? 'border-[var(--accent-blue)] bg-[var(--accent-blue)]/10 text-[var(--text-1)]'
+                    : 'border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-strong)]'
                 }`}
               >
                 {tf.label}
@@ -171,7 +171,7 @@ export default function OverviewPage() {
             ))}
           </div>
 
-          <div className="mt-4 bg-[#0F141A] border border-[#1B232C] rounded-lg p-3.5 font-mono text-[11px] text-[#7C8896] leading-relaxed">
+          <div className="mt-4 bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg p-3.5 font-mono text-[11px] text-[var(--text-2)] leading-relaxed">
             {!selectedState ? (
               <>No data yet for this timeframe — waiting on live signal feed.</>
             ) : (
@@ -187,22 +187,22 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6">
-          <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-4">Timeframe Boxes — box-chain state</div>
+        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6">
+          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-4">Timeframe Boxes — box-chain state</div>
           {confluence.length === 0 ? (
-            <div className="text-[#7C8896] font-mono text-sm">No data yet — waiting on live signal feed.</div>
+            <div className="text-[var(--text-2)] font-mono text-sm">No data yet — waiting on live signal feed.</div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {TIMEFRAMES.map(tf => {
                 const c = confluence.find((x) => x.tf === tf.key)
                 const st = c?.state
                 return (
-                  <div key={tf.key} className="bg-[#0F141A] border border-[#1B232C] rounded-lg p-3">
-                    <div className="font-mono text-[10px] text-[#7C8896] uppercase tracking-wide mb-1">{tf.label}</div>
-                    <div className={`font-mono text-sm font-semibold ${st === 'bullish' ? 'text-[#34D399]' : st === 'bearish' ? 'text-[#F87171]' : 'text-[#7C8896]'}`}>
+                  <div key={tf.key} className="bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg p-3">
+                    <div className="font-mono text-[10px] text-[var(--text-2)] uppercase tracking-wide mb-1">{tf.label}</div>
+                    <div className={`font-mono text-sm font-semibold ${st === 'bullish' ? 'text-[var(--bull)]' : st === 'bearish' ? 'text-[var(--bear)]' : 'text-[var(--text-2)]'}`}>
                       {st === 'bullish' ? 'BULLISH' : st === 'bearish' ? 'BEARISH' : st === 'pending' ? 'PENDING' : '—'}
                     </div>
-                    {c?.fade_active && <div className="font-mono text-[9px] text-[#2DD4BF] mt-0.5">OUTSIDE EDGE</div>}
+                    {c?.fade_active && <div className="font-mono text-[9px] text-[var(--accent-blue)] mt-0.5">OUTSIDE EDGE</div>}
                   </div>
                 )
               })}
@@ -212,14 +212,14 @@ export default function OverviewPage() {
       </div>
 
       {byType.length > 0 && (
-        <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-5 mb-5">
-          <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-3">Success Rate by Signal Type (30d)</div>
+        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-5 mb-5">
+          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-3">Success Rate by Signal Type (30d)</div>
           <div className="flex flex-wrap gap-6">
             {byType.map((t, i) => (
               <div key={i}>
-                <div className="font-mono text-[10px] text-[#7C8896]">{t.type}</div>
-                <div className={`text-xl font-bold ${t.pct !== null && t.pct >= 50 ? 'text-[#34D399]' : t.pct !== null ? 'text-[#F87171]' : 'text-white'}`}>
-                  {t.pct !== null ? t.pct + '%' : '—'} <span className="text-[#3A434D] text-xs font-normal">· {t.count}</span>
+                <div className="font-mono text-[10px] text-[var(--text-2)]">{t.type}</div>
+                <div className={`text-xl font-bold ${t.pct !== null && t.pct >= 50 ? 'text-[var(--bull)]' : t.pct !== null ? 'text-[var(--bear)]' : 'text-[var(--text-1)]'}`}>
+                  {t.pct !== null ? t.pct + '%' : '—'} <span className="text-[var(--border-strong)] text-xs font-normal">· {t.count}</span>
                 </div>
               </div>
             ))}
@@ -229,17 +229,17 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Open Signals', value: stats.open, color: 'text-white' },
-          { label: "Today's Signals", value: stats.today, color: 'text-white' },
-          { label: 'Success Rate', value: stats.successRate !== null ? stats.successRate + '%' : '—', color: 'text-[#34D399]' },
+          { label: 'Open Signals', value: stats.open, color: 'text-[var(--text-1)]' },
+          { label: "Today's Signals", value: stats.today, color: 'text-[var(--text-1)]' },
+          { label: 'Success Rate', value: stats.successRate !== null ? stats.successRate + '%' : '—', color: 'text-[var(--bull)]' },
           {
             label: 'Net Points (30d)',
             value: stats.net === null ? '—' : (stats.net > 0 ? '+' : '') + stats.net,
-            color: stats.net === null ? 'text-white' : stats.net > 0 ? 'text-[#34D399]' : stats.net < 0 ? 'text-[#F87171]' : 'text-white'
+            color: stats.net === null ? 'text-[var(--text-1)]' : stats.net > 0 ? 'text-[var(--bull)]' : stats.net < 0 ? 'text-[var(--bear)]' : 'text-[var(--text-1)]'
           },
         ].map((c, i) => (
-          <div key={i} className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-5">
-            <div className="font-mono text-[10px] tracking-widest text-[#7C8896] uppercase mb-2">{c.label}</div>
+          <div key={i} className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-5">
+            <div className="font-mono text-[10px] tracking-widest text-[var(--text-2)] uppercase mb-2">{c.label}</div>
             <div className={`text-2xl font-bold ${c.color}`}>{c.value}</div>
           </div>
         ))}

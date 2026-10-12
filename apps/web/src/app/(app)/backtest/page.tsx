@@ -92,9 +92,9 @@ function daysAgoISO(n: number) {
 // statistical rule of thumb (variance of a win-rate estimate shrinks
 // substantially past ~30), not a precise cutoff.
 function sampleTier(n: number): { label: string; color: string } {
-  if (n < 10) return { label: `n=${n} -- very small sample`, color: '#F87171' }
-  if (n < 30) return { label: `n=${n} -- small sample`, color: '#F5A623' }
-  return { label: `n=${n} -- reasonable sample`, color: '#34D399' }
+  if (n < 10) return { label: `n=${n} -- very small sample`, color: 'var(--bear)' }
+  if (n < 30) return { label: `n=${n} -- small sample`, color: 'var(--warn)' }
+  return { label: `n=${n} -- reasonable sample`, color: 'var(--bull)' }
 }
 
 const OVERRIDE_FIELDS: { key: keyof ConfigOverrides; label: string; step: number }[] = [
@@ -214,49 +214,49 @@ export default function BacktestPage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white">Backtest <span className="text-[#3A434D] font-medium">— historical simulation</span></h1>
-        <div className="font-mono text-xs text-[#7C8896] mt-2">
+        <h1 className="text-3xl font-bold text-[var(--text-1)]">Backtest <span className="text-[var(--border-strong)] font-medium">— historical simulation</span></h1>
+        <div className="font-mono text-xs text-[var(--text-2)] mt-2">
           Runs the current live Pine logic (or your own parameter variants) against real historical price data. Not the actual Pine script executing -- a hand-ported replica, kept in sync with the live BRUVV script. Treat results as informative, not proven, until cross-checked against real signals.
         </div>
       </div>
 
-      <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6 mb-5">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6 mb-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
           <div>
-            <div className="text-[9px] text-[#7C8896] uppercase tracking-wide mb-1.5 font-mono">Start date</div>
+            <div className="text-[9px] text-[var(--text-2)] uppercase tracking-wide mb-1.5 font-mono">Start date</div>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-              className="w-full bg-[#0F141A] border border-[#1B232C] rounded-lg px-3 py-2 text-white font-mono text-sm" />
+              className="w-full bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-1)] font-mono text-sm" />
           </div>
           <div>
-            <div className="text-[9px] text-[#7C8896] uppercase tracking-wide mb-1.5 font-mono">End date</div>
+            <div className="text-[9px] text-[var(--text-2)] uppercase tracking-wide mb-1.5 font-mono">End date</div>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-              className="w-full bg-[#0F141A] border border-[#1B232C] rounded-lg px-3 py-2 text-white font-mono text-sm" />
+              className="w-full bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-1)] font-mono text-sm" />
           </div>
         </div>
-        <div className="font-mono text-[10px] text-[#7C8896] mb-5">
+        <div className="font-mono text-[10px] text-[var(--text-2)] mb-5">
           Longer ranges cost more Twelve Data credits (1-minute data especially) -- keep this short (a few days to ~2 weeks) unless you specifically need more history. Also worth knowing: TradingView&apos;s Bar Replay on a 1-minute chart typically only reaches back a handful of days regardless of plan -- for verifying an older flagged signal, you may need to check it on a coarser timeframe instead.
         </div>
 
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase">
+          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase">
             Configurations to compare
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {QUICK_VARIANTS.map(preset => (
               <button key={preset.label} onClick={() => addQuickVariant(preset)} disabled={atVariantCap}
                 title="Adds this variant, pre-filled, directly to the list below -- still editable after"
-                className="font-mono text-[10px] px-2.5 py-1.5 rounded border border-[#2B8CE0] text-[#2B8CE0] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#2B8CE0]/10">
+                className="font-mono text-[10px] px-2.5 py-1.5 rounded border border-[var(--info)] text-[var(--info)] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--info)]/10">
                 + {preset.label}
               </button>
             ))}
             <button onClick={addConfig} disabled={atVariantCap}
-              className="font-mono text-[11px] px-3 py-1.5 rounded border border-[#2DD4BF] text-[#2DD4BF] disabled:opacity-30 disabled:cursor-not-allowed">
+              className="font-mono text-[11px] px-3 py-1.5 rounded border border-[var(--accent-blue)] text-[var(--accent-blue)] disabled:opacity-30 disabled:cursor-not-allowed">
               + Add blank variant
             </button>
           </div>
         </div>
 
-        <div className="bg-[#0F141A] border border-[#1B232C] rounded-lg p-3 mb-3 font-mono text-xs text-[#7C8896]">
+        <div className="bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg p-3 mb-3 font-mono text-xs text-[var(--text-2)]">
           Baseline (current live settings) — always included, uses every default from the live script.
         </div>
 
@@ -271,29 +271,29 @@ export default function BacktestPage() {
               .map(([k, v]) => `${OVERRIDE_FIELDS.find(f => f.key === k)?.label ?? k}: ${v}`)
               .join(' · ')
             return (
-              <div key={cfg.id} className="bg-[#0F141A] border border-[#1B232C] rounded-lg px-4 py-3 mb-3 flex items-center justify-between gap-3">
+              <div key={cfg.id} className="bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg px-4 py-3 mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-white font-mono text-sm truncate">{cfg.name}</div>
-                  <div className="text-[#7C8896] font-mono text-[10px] truncate">{summary}</div>
+                  <div className="text-[var(--text-1)] font-mono text-sm truncate">{cfg.name}</div>
+                  <div className="text-[var(--text-2)] font-mono text-[10px] truncate">{summary}</div>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <button
                     onClick={() => setExtraConfigs(prev => prev.map(c => c.id === cfg.id ? { ...c, isQuickPreset: false } : c))}
-                    className="text-[#2B8CE0] font-mono text-[10px]" title="Expand to add more settings to this variant">
+                    className="text-[var(--info)] font-mono text-[10px]" title="Expand to add more settings to this variant">
                     customize further
                   </button>
-                  <button onClick={() => removeConfig(cfg.id)} className="text-[#F87171] font-mono text-xs">✕</button>
+                  <button onClick={() => removeConfig(cfg.id)} className="text-[var(--bear)] font-mono text-xs">✕</button>
                 </div>
               </div>
             )
           }
 
           return (
-            <div key={cfg.id} className="bg-[#0F141A] border border-[#1B232C] rounded-lg p-4 mb-3">
+            <div key={cfg.id} className="bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg p-4 mb-3">
               <div className="flex items-center justify-between mb-3">
                 <input value={cfg.name} onChange={e => updateConfigName(cfg.id, e.target.value)}
-                  className="bg-transparent text-white font-mono text-sm border-b border-[#1B232C] focus:outline-none focus:border-[#2DD4BF] flex-1 mr-3" />
-                <button onClick={() => removeConfig(cfg.id)} className="text-[#F87171] font-mono text-xs">✕ remove</button>
+                  className="bg-transparent text-[var(--text-1)] font-mono text-sm border-b border-[var(--border)] focus:outline-none focus:border-[var(--accent-blue)] flex-1 mr-3" />
+                <button onClick={() => removeConfig(cfg.id)} className="text-[var(--bear)] font-mono text-xs">✕ remove</button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {OVERRIDE_FIELDS.map(field => {
@@ -302,11 +302,11 @@ export default function BacktestPage() {
                     <div key={field.key} className="flex items-center gap-2">
                       <input type="checkbox" checked={enabled}
                         onChange={() => toggleOverrideEnabled(cfg.id, field.key)} />
-                      <span className="font-mono text-[11px] text-[#7C8896] flex-1">{field.label}</span>
+                      <span className="font-mono text-[11px] text-[var(--text-2)] flex-1">{field.label}</span>
                       <input type="number" step={field.step} disabled={!enabled}
                         value={enabled ? (cfg.overrides[field.key] as number) : ''}
                         onChange={e => updateConfigOverride(cfg.id, field.key, parseFloat(e.target.value))}
-                        className="w-20 bg-[#0B0F14] border border-[#1B232C] rounded px-2 py-1 text-white font-mono text-xs disabled:opacity-30" />
+                        className="w-20 bg-[var(--bg-panel)] border border-[var(--border)] rounded px-2 py-1 text-[var(--text-1)] font-mono text-xs disabled:opacity-30" />
                     </div>
                   )
                 })}
@@ -316,19 +316,19 @@ export default function BacktestPage() {
         })}
 
         <button onClick={run} disabled={running}
-          className="mt-2 bg-[#2DD4BF] text-[#05070A] font-mono text-sm font-bold px-5 py-2.5 rounded-lg disabled:opacity-50">
+          className="mt-2 bg-[var(--accent-blue)] text-[var(--bg-app)] font-mono text-sm font-bold px-5 py-2.5 rounded-lg disabled:opacity-50">
           {running ? 'Running…' : 'Run Backtest'}
         </button>
 
-        {error && <div className="mt-4 font-mono text-xs text-[#F87171]">{error}</div>}
+        {error && <div className="mt-4 font-mono text-xs text-[var(--bear)]">{error}</div>}
       </div>
 
       {meta && (
-        <div className="font-mono text-[10px] text-[#7C8896] mb-5">
+        <div className="font-mono text-[10px] text-[var(--text-2)] mb-5">
           Bars fetched: 1m {meta.barsCounts['1m']} · 5m {meta.barsCounts['5m']} · 15m {meta.barsCounts['15m']} · 1h {meta.barsCounts['1h']} · 4h {meta.barsCounts['4h']} · D {meta.barsCounts['D']} · W {meta.barsCounts['W']} · M {meta.barsCounts['M']}
           <span className="ml-3">Twelve Data used: {meta.used}/{meta.limit} today ({meta.creditsUsed} this run)</span>
           {meta.oneMinuteRangeActuallyFetched && (
-            <div className="mt-1 text-[#F5A623]">
+            <div className="mt-1 text-[var(--warn)]">
               1m data actually covers: {meta.oneMinuteRangeActuallyFetched.earliest} to {meta.oneMinuteRangeActuallyFetched.latest} -- compare against your requested start/end date above.
             </div>
           )}
@@ -338,33 +338,33 @@ export default function BacktestPage() {
       {results && (
         <div className={`grid grid-cols-1 ${results.length > 1 ? 'lg:grid-cols-2' : ''} gap-5`}>
           {results.map((r, ri) => (
-            <div key={ri} className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6">
-              <div className="font-bold text-white mb-1">{r.name}</div>
-              <div className="font-mono text-[10px] text-[#3A434D] mb-4">
+            <div key={ri} className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6">
+              <div className="font-bold text-[var(--text-1)] mb-1">{r.name}</div>
+              <div className="font-mono text-[10px] text-[var(--border-strong)] mb-4">
                 SL cap {r.params.maxSLPoints}pts · HTF mid-rej {r.params.htfMidRejMinCount}/6 · Setup A/B CSOD {r.params.execCsodDisplacementPct}% · pullback {r.params.pullbackDispMinPct}-{r.params.pullbackDispMaxPct}%
               </div>
 
               <div className="flex items-center gap-6 mb-2 flex-wrap">
                 <div>
-                  <div className="text-2xl font-bold text-[#34D399]">{r.summary.winRate !== null ? r.summary.winRate + '%' : '—'}</div>
-                  <div className="font-mono text-[10px] text-[#7C8896]">win rate</div>
+                  <div className="text-2xl font-bold text-[var(--bull)]">{r.summary.winRate !== null ? r.summary.winRate + '%' : '—'}</div>
+                  <div className="font-mono text-[10px] text-[var(--text-2)]">win rate</div>
                 </div>
                 <div>
-                  <div className={`text-2xl font-bold ${r.summary.netPoints > 0 ? 'text-[#34D399]' : r.summary.netPoints < 0 ? 'text-[#F87171]' : 'text-white'}`}>
+                  <div className={`text-2xl font-bold ${r.summary.netPoints > 0 ? 'text-[var(--bull)]' : r.summary.netPoints < 0 ? 'text-[var(--bear)]' : 'text-[var(--text-1)]'}`}>
                     {r.summary.netPoints > 0 ? '+' : ''}{r.summary.netPoints}
                   </div>
-                  <div className="font-mono text-[10px] text-[#7C8896]">net points</div>
+                  <div className="font-mono text-[10px] text-[var(--text-2)]">net points</div>
                 </div>
                 <div>
-                  <div className={`text-2xl font-bold ${r.summary.avgPointsPerSignal !== null && r.summary.avgPointsPerSignal > 0 ? 'text-[#34D399]' : r.summary.avgPointsPerSignal !== null && r.summary.avgPointsPerSignal < 0 ? 'text-[#F87171]' : 'text-white'}`}>
+                  <div className={`text-2xl font-bold ${r.summary.avgPointsPerSignal !== null && r.summary.avgPointsPerSignal > 0 ? 'text-[var(--bull)]' : r.summary.avgPointsPerSignal !== null && r.summary.avgPointsPerSignal < 0 ? 'text-[var(--bear)]' : 'text-[var(--text-1)]'}`}>
                     {r.summary.avgPointsPerSignal !== null ? (r.summary.avgPointsPerSignal > 0 ? '+' : '') + r.summary.avgPointsPerSignal : '—'}
                   </div>
-                  <div className="font-mono text-[10px] text-[#7C8896]">avg pts / signal</div>
+                  <div className="font-mono text-[10px] text-[var(--text-2)]">avg pts / signal</div>
                 </div>
                 <div className="flex gap-4 font-mono text-xs">
-                  <div className="text-center"><div className="text-[#34D399] font-bold">{r.summary.wins}</div><div className="text-[9px] text-[#7C8896]">wins</div></div>
-                  <div className="text-center"><div className="text-[#F87171] font-bold">{r.summary.losses}</div><div className="text-[9px] text-[#7C8896]">losses</div></div>
-                  <div className="text-center"><div className="text-[#7C8896] font-bold">{r.summary.stillOpen}</div><div className="text-[9px] text-[#7C8896]">open</div></div>
+                  <div className="text-center"><div className="text-[var(--bull)] font-bold">{r.summary.wins}</div><div className="text-[9px] text-[var(--text-2)]">wins</div></div>
+                  <div className="text-center"><div className="text-[var(--bear)] font-bold">{r.summary.losses}</div><div className="text-[9px] text-[var(--text-2)]">losses</div></div>
+                  <div className="text-center"><div className="text-[var(--text-2)] font-bold">{r.summary.stillOpen}</div><div className="text-[9px] text-[var(--text-2)]">open</div></div>
                 </div>
               </div>
 
@@ -385,8 +385,8 @@ export default function BacktestPage() {
                   return (
                     <div key={type} className="font-mono text-xs">
                       <div className="flex justify-between">
-                        <span className="text-[#7C8896]">{type.replace(/_/g, ' ')} <span className="text-[#3A434D]">· {stats.total}</span></span>
-                        <span className="text-white">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
+                        <span className="text-[var(--text-2)]">{type.replace(/_/g, ' ')} <span className="text-[var(--border-strong)]">· {stats.total}</span></span>
+                        <span className="text-[var(--text-1)]">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
                       </div>
                       {n > 0 && <div className="text-[9px] mt-0.5" style={{ color: tier.color }}>{tier.label}</div>}
                     </div>
@@ -395,16 +395,16 @@ export default function BacktestPage() {
               </div>
 
               {r.summary.byPath && (r.summary.byPath.setup_a?.total > 0 || r.summary.byPath.setup_b?.total > 0) && (
-                <div className="space-y-2 mb-4 pt-3 border-t border-[#1B232C]">
-                  <div className="font-mono text-[9px] text-[#3A434D] uppercase mb-1">Sniper Confirmation, by path</div>
+                <div className="space-y-2 mb-4 pt-3 border-t border-[var(--border)]">
+                  <div className="font-mono text-[9px] text-[var(--border-strong)] uppercase mb-1">Sniper Confirmation, by path</div>
                   {Object.entries(r.summary.byPath).map(([path, stats]) => {
                     const n = stats.total
                     const tier = sampleTier(n)
                     return (
                       <div key={path} className="font-mono text-xs">
                         <div className="flex justify-between">
-                          <span className="text-[#7C8896]">{path === 'setup_a' ? 'Setup A (CSOD+BOS)' : 'Setup B (realignment)'} <span className="text-[#3A434D]">· {stats.total}</span></span>
-                          <span className="text-white">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
+                          <span className="text-[var(--text-2)]">{path === 'setup_a' ? 'Setup A (CSOD+BOS)' : 'Setup B (realignment)'} <span className="text-[var(--border-strong)]">· {stats.total}</span></span>
+                          <span className="text-[var(--text-1)]">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
                         </div>
                         {n > 0 && <div className="text-[9px] mt-0.5" style={{ color: tier.color }}>{tier.label}</div>}
                       </div>
@@ -422,14 +422,14 @@ export default function BacktestPage() {
                   prominently (amber) when zero signals fired, since
                   that's precisely when it matters most. */}
               {r.diagnostics && (
-                <div className={`rounded-lg p-3 mb-4 font-mono text-[10px] ${r.summary.total === 0 ? 'bg-[#F5A623]/10 border border-[#F5A623]/30 text-[#F5A623]' : 'bg-[#0F141A] text-[#7C8896]'}`}>
+                <div className={`rounded-lg p-3 mb-4 font-mono text-[10px] ${r.summary.total === 0 ? 'bg-[var(--warn)]/10 border border-[var(--warn)]/30 text-[var(--warn)]' : 'bg-[var(--bg-raised)] text-[var(--text-2)]'}`}>
                   <div className="uppercase tracking-wide mb-1.5 font-bold">Why this result (signal funnel)</div>
                   <div>Bars loaded: {r.diagnostics.totalBars} · evaluated: {r.diagnostics.barsEvaluated} · skipped (missing 15m/1m box data): {r.diagnostics.barsSkippedByGuard}</div>
                   <div className="mt-1">Setup A raw condition ever true: {r.diagnostics.setupARawTrueCount} bars</div>
                   <div>Setup B stages -- armed: {r.diagnostics.setupBFiredStageCount.armed} · awaiting pullback: {r.diagnostics.setupBFiredStageCount.waitingRevert} · awaiting realign: {r.diagnostics.setupBFiredStageCount.waitingRealign}</div>
                   <div>Precision raw condition ever true: {r.diagnostics.precisionRawTrueCount} bars</div>
                   {r.summary.total === 0 && (
-                    <div className="mt-2 pt-2 border-t border-[#F5A623]/20">
+                    <div className="mt-2 pt-2 border-t border-[var(--warn)]/20">
                       {r.diagnostics.barsEvaluated === 0
                         ? 'All bars were skipped -- the 15m or 1m box chain has no data for this range. Try a longer date range so the box logic has enough history to establish state.'
                         : r.diagnostics.setupARawTrueCount === 0 && r.diagnostics.precisionRawTrueCount === 0
@@ -441,16 +441,16 @@ export default function BacktestPage() {
               )}
 
               {r.summary.byRRLevel && Object.keys(r.summary.byRRLevel).length > 0 && (
-                <div className="space-y-2 mb-4 pt-3 border-t border-[#1B232C]">
-                  <div className="font-mono text-[9px] text-[#3A434D] uppercase mb-1">Win rate by R:R level used</div>
+                <div className="space-y-2 mb-4 pt-3 border-t border-[var(--border)]">
+                  <div className="font-mono text-[9px] text-[var(--border-strong)] uppercase mb-1">Win rate by R:R level used</div>
                   {Object.entries(r.summary.byRRLevel).map(([rr, stats]) => {
                     const n = stats.total
                     const tier = sampleTier(n)
                     return (
                       <div key={rr} className="font-mono text-xs">
                         <div className="flex justify-between">
-                          <span className="text-[#7C8896]">{rr} <span className="text-[#3A434D]">· {stats.total}</span></span>
-                          <span className="text-white">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
+                          <span className="text-[var(--text-2)]">{rr} <span className="text-[var(--border-strong)]">· {stats.total}</span></span>
+                          <span className="text-[var(--text-1)]">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
                         </div>
                         {n > 0 && <div className="text-[9px] mt-0.5" style={{ color: tier.color }}>{tier.label}</div>}
                       </div>
@@ -460,16 +460,16 @@ export default function BacktestPage() {
               )}
 
               {r.summary.byGrade && Object.keys(r.summary.byGrade).length > 0 && (
-                <div className="space-y-2 mb-4 pt-3 border-t border-[#1B232C]">
-                  <div className="font-mono text-[9px] text-[#3A434D] uppercase mb-1">Win rate by grade band</div>
+                <div className="space-y-2 mb-4 pt-3 border-t border-[var(--border)]">
+                  <div className="font-mono text-[9px] text-[var(--border-strong)] uppercase mb-1">Win rate by grade band</div>
                   {Object.entries(r.summary.byGrade).map(([band, stats]) => {
                     const n = stats.total
                     const tier = sampleTier(n)
                     return (
                       <div key={band} className="font-mono text-xs">
                         <div className="flex justify-between">
-                          <span className="text-[#7C8896]">{band} <span className="text-[#3A434D]">· {stats.total}</span></span>
-                          <span className="text-white">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
+                          <span className="text-[var(--text-2)]">{band} <span className="text-[var(--border-strong)]">· {stats.total}</span></span>
+                          <span className="text-[var(--text-1)]">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
                         </div>
                         {n > 0 && <div className="text-[9px] mt-0.5" style={{ color: tier.color }}>{tier.label}</div>}
                       </div>
@@ -479,16 +479,16 @@ export default function BacktestPage() {
               )}
 
               {r.summary.bySession && Object.keys(r.summary.bySession).length > 0 && (
-                <div className="space-y-2 mb-4 pt-3 border-t border-[#1B232C]">
-                  <div className="font-mono text-[9px] text-[#3A434D] uppercase mb-1">Win rate by session</div>
+                <div className="space-y-2 mb-4 pt-3 border-t border-[var(--border)]">
+                  <div className="font-mono text-[9px] text-[var(--border-strong)] uppercase mb-1">Win rate by session</div>
                   {Object.entries(r.summary.bySession).map(([session, stats]) => {
                     const n = stats.total
                     const tier = sampleTier(n)
                     return (
                       <div key={session} className="font-mono text-xs">
                         <div className="flex justify-between">
-                          <span className="text-[#7C8896]">{session} <span className="text-[#3A434D]">· {stats.total}</span></span>
-                          <span className="text-white">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
+                          <span className="text-[var(--text-2)]">{session} <span className="text-[var(--border-strong)]">· {stats.total}</span></span>
+                          <span className="text-[var(--text-1)]">{stats.winRate !== null ? stats.winRate + '%' : '—'}</span>
                         </div>
                         {n > 0 && <div className="text-[9px] mt-0.5" style={{ color: tier.color }}>{tier.label}</div>}
                       </div>
@@ -498,29 +498,29 @@ export default function BacktestPage() {
               )}
 
               {r.signals.length > 0 && (
-                <div className="border-t border-[#1B232C] pt-3 mt-3">
-                  <div className="font-mono text-[10px] text-[#7C8896] uppercase mb-2">Individual signals ({r.signals.length})</div>
+                <div className="border-t border-[var(--border)] pt-3 mt-3">
+                  <div className="font-mono text-[10px] text-[var(--text-2)] uppercase mb-2">Individual signals ({r.signals.length})</div>
                   <div className="space-y-1.5 max-h-96 overflow-y-auto">
                     {r.signals.map((sig, si) => {
                       const key = ri * 10000 + si
                       const isExp = expandedSignals.has(key)
                       const isWin = sig.outcome === 'tp_hit'
                       return (
-                        <div key={si} className="bg-[#0F141A] rounded p-2 font-mono text-[10px]">
+                        <div key={si} className="bg-[var(--bg-raised)] rounded p-2 font-mono text-[10px]">
                           <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleSignal(key)}>
-                            <span className="text-[#7C8896]">
+                            <span className="text-[var(--text-2)]">
                               {sig.time.slice(0, 16).replace('T', ' ')} · {sig.direction.toUpperCase()} · {sig.signalType}{sig.path ? ` (${sig.path})` : ''}
                             </span>
-                            <span className={isWin ? 'text-[#34D399]' : sig.outcome === 'stopped_out' ? 'text-[#F87171]' : 'text-[#7C8896]'}>
+                            <span className={isWin ? 'text-[var(--bull)]' : sig.outcome === 'stopped_out' ? 'text-[var(--bear)]' : 'text-[var(--text-2)]'}>
                               {sig.outcome.replace(/_/g, ' ')}
                             </span>
                           </div>
                           {isExp && (
-                            <div className="mt-1.5 pt-1.5 border-t border-[#1B232C] text-[#7C8896] space-y-0.5">
+                            <div className="mt-1.5 pt-1.5 border-t border-[var(--border)] text-[var(--text-2)] space-y-0.5">
                               <div>Entry {sig.entry.toFixed(2)} · SL {sig.sl.toFixed(2)} · TP {sig.tp.toFixed(2)} · R:R 1:{sig.rrUsed}</div>
                               <div>Grade {sig.gradeValue}/7 · HTF rung {sig.htfRung} · exec {sig.execTf}m</div>
                               {sig.barsToResolve != null && <div>Resolved in {sig.barsToResolve} bars</div>}
-                              <div className="text-[#2DD4BF] pt-1">
+                              <div className="text-[var(--accent-blue)] pt-1">
                                 Bar Replay: jump to {new Date(sig.time).toISOString().replace('T', ' ').slice(0, 16)} UTC on the {sig.execTf}m chart to verify this against the real chart.
                               </div>
                             </div>

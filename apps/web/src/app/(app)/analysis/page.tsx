@@ -127,58 +127,58 @@ export default function AnalysisPage() {
   return (
     <div className="p-6 md:p-8 max-w-3xl fade-up">
       <div className="mb-7">
-        <div className="mono text-[10px] tracking-[0.3em] text-[#2B8CE0] uppercase mb-1">Outcome Resolution</div>
-        <h1 className="text-2xl font-bold text-white">
-          Analysis <span className="text-[#7C8896] font-normal text-base ml-2">— signal outcomes, resolved automatically</span>
+        <div className="mono text-[10px] tracking-[0.3em] text-[var(--info)] uppercase mb-1">Outcome Resolution</div>
+        <h1 className="text-2xl font-bold text-[var(--text-1)]">
+          Analysis <span className="text-[var(--text-2)] font-normal text-base ml-2">— signal outcomes, resolved automatically</span>
         </h1>
       </div>
 
-      <div className="bg-[#0D1218] border border-[#1C2530] rounded-2xl p-4 mb-5 flex items-center justify-between flex-wrap gap-3">
+      <div className="bg-[var(--bg-panel)] border border-[var(--bg-hover)] rounded-2xl p-4 mb-5 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4">
           <div>
-            <div className="mono text-[9px] tracking-widest text-[#7C8896] uppercase">Current Session</div>
-            <div className="mono text-sm font-bold text-[#2B8CE0] mt-0.5">{session.name}</div>
+            <div className="mono text-[9px] tracking-widest text-[var(--text-2)] uppercase">Current Session</div>
+            <div className="mono text-sm font-bold text-[var(--info)] mt-0.5">{session.name}</div>
           </div>
-          <div className="w-px h-8 bg-[#1C2530]" />
+          <div className="w-px h-8 bg-[var(--bg-hover)]" />
           <div>
-            <div className="mono text-[9px] tracking-widest text-[#7C8896] uppercase">UTC Time</div>
-            <div className="mono text-sm text-white mt-0.5">
+            <div className="mono text-[9px] tracking-widest text-[var(--text-2)] uppercase">UTC Time</div>
+            <div className="mono text-sm text-[var(--text-1)] mt-0.5">
               {now.getUTCHours().toString().padStart(2,'0')}:{now.getUTCMinutes().toString().padStart(2,'0')} UTC
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#34C08A] blink" />
-          <span className="mono text-[10px] text-[#34C08A]">Live context</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--bull)] blink" />
+          <span className="mono text-[10px] text-[var(--bull)]">Live context</span>
         </div>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
-      <div className="mono text-[10px] text-[#7C8896] mb-3">
+      <div className="mono text-[10px] text-[var(--text-2)] mb-3">
         Every open signal is checked against real price data automatically every 10 minutes — no button needed. This section is a live view of the results, not a trigger.
       </div>
 
-      <div className="bg-[#0D1218] border border-[#1C2530] rounded-2xl p-6 mb-4">
+      <div className="bg-[var(--bg-panel)] border border-[var(--bg-hover)] rounded-2xl p-6 mb-4">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <span className="mono text-[10px] text-[#2DD4BF] tracking-widest uppercase">Resolved signals</span>
-          <span className="mono text-[10px] text-[#7C8896]">{resolved.length} total · {successCount} successful</span>
+          <span className="mono text-[10px] text-[var(--accent-blue)] tracking-widest uppercase">Resolved signals</span>
+          <span className="mono text-[10px] text-[var(--text-2)]">{resolved.length} total · {successCount} successful</span>
         </div>
 
         <div className="flex gap-2 mb-4 flex-wrap">
           {(['all', 'tp_hit', 'stopped_out'] as const).map(f => (
             <button key={f} onClick={() => setResolutionFilter(f)}
               className={`font-mono text-[11px] uppercase tracking-wide px-4 py-1.5 rounded ${
-                resolutionFilter === f ? 'bg-[#14625A]/40 text-[#2DD4BF] border border-[#2DD4BF]' : 'border border-[#1B232C] text-[#7C8896]'
+                resolutionFilter === f ? 'bg-[var(--accent-blue-solid)] text-[var(--on-accent)] border border-[var(--accent-blue-solid)]' : 'border border-[var(--border)] text-[var(--text-2)]'
               }`}>{f === 'tp_hit' ? 'successful' : f === 'stopped_out' ? 'unsuccessful' : f}</button>
           ))}
         </div>
 
         {loadingResolved ? (
-          <div className="mono text-[11px] text-[#7C8896] py-2">Loading…</div>
+          <div className="mono text-[11px] text-[var(--text-2)] py-2">Loading…</div>
         ) : (
           <>
             <select
-              className="w-full bg-[#0F141A] border border-[#1B232C] rounded-lg px-3 py-2.5 font-mono text-xs text-white outline-none focus:border-[#2DD4BF] mb-3"
+              className="w-full bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg px-3 py-2.5 font-mono text-xs text-[var(--text-1)] outline-none focus:border-[var(--accent-blue)] mb-3"
               defaultValue=""
               onChange={() => {}}
             >
@@ -192,11 +192,11 @@ export default function AnalysisPage() {
 
             <div className="space-y-1.5">
               {filteredResolved.length === 0 ? (
-                <div className="mono text-[11px] text-[#7C8896] py-2">No resolved signals in this view yet — waiting on live signal feed.</div>
+                <div className="mono text-[11px] text-[var(--text-2)] py-2">No resolved signals in this view yet — waiting on live signal feed.</div>
               ) : filteredResolved.map((r, i) => (
-                <div key={i} className="font-mono text-[11px] flex justify-between items-center py-1.5 border-t border-[#1B232C] first:border-t-0">
-                  <span className="text-[#EDEFF2]">{r.signal_id}</span>
-                  <span className={`px-2 py-0.5 rounded ${r.outcome === 'tp_hit' ? 'text-[#2B8CE0] bg-[#2B8CE0]/15' : 'text-[#F87171] bg-[#F87171]/15'}`}>
+                <div key={i} className="font-mono text-[11px] flex justify-between items-center py-1.5 border-t border-[var(--border)] first:border-t-0">
+                  <span className="text-[var(--text-1)]">{r.signal_id}</span>
+                  <span className={`px-2 py-0.5 rounded ${r.outcome === 'tp_hit' ? 'text-[var(--info)] bg-[var(--info)]/15' : 'text-[var(--bear)] bg-[var(--bear)]/15'}`}>
                     {r.outcome === 'tp_hit' ? 'SUCCESSFUL' : 'UNSUCCESSFUL'}
                   </span>
                 </div>
@@ -206,23 +206,23 @@ export default function AnalysisPage() {
         )}
       </div>
 
-      <div className="mt-10 pt-8 border-t border-[#1C2530]">
+      <div className="mt-10 pt-8 border-t border-[var(--bg-hover)]">
         <div className="mb-5">
-          <div className="mono text-[10px] tracking-[0.3em] text-[#F5A623] uppercase mb-1">Deterministic, Not AI-Generated</div>
-          <h2 className="text-xl font-bold text-white">
-            Closed Signal Patterns <span className="text-[#7C8896] font-normal text-sm ml-2">— real counts from your actual closed signals</span>
+          <div className="mono text-[10px] tracking-[0.3em] text-[var(--warn)] uppercase mb-1">Deterministic, Not AI-Generated</div>
+          <h2 className="text-xl font-bold text-[var(--text-1)]">
+            Closed Signal Patterns <span className="text-[var(--text-2)] font-normal text-sm ml-2">— real counts from your actual closed signals</span>
           </h2>
         </div>
 
-        <div className="mono text-[10px] text-[#7C8896] mb-3">
+        <div className="mono text-[10px] text-[var(--text-2)] mb-3">
           No AI involved in this section on purpose -- every statement below is a real, computed count with its own real sample size shown alongside it. Treat these as patterns worth a closer look, not proof, especially with small sample sizes.
         </div>
 
         <button onClick={runPatternSummary} disabled={patternsLoading}
-          className="flex items-center gap-2.5 px-5 py-3 bg-[#F5A623] hover:bg-[#ffb84d] disabled:opacity-50 text-[#05070A] font-semibold text-sm rounded-xl transition-all mb-2">
+          className="flex items-center gap-2.5 px-5 py-3 bg-[var(--warn)] hover:bg-[var(--warn)] disabled:opacity-50 text-[var(--bg-app)] font-semibold text-sm rounded-xl transition-all mb-2">
           {patternsLoading ? (
             <>
-              <span className="w-4 h-4 border-2 border-[#05070A]/30 border-t-[#05070A] rounded-full inline-block" style={{ animation: 'spin 0.7s linear infinite' }} />
+              <span className="w-4 h-4 border-2 border-[var(--bg-app)]/30 border-t-[var(--bg-app)] rounded-full inline-block" style={{ animation: 'spin 0.7s linear infinite' }} />
               Computing patterns…
             </>
           ) : (
@@ -231,35 +231,35 @@ export default function AnalysisPage() {
         </button>
 
         {patternsError && (
-          <div className="bg-[#E5555A]/10 border border-[#E5555A]/25 rounded-2xl px-5 py-4 mono text-xs text-[#E5555A] mb-4 mt-3">
+          <div className="bg-[var(--bear)]/10 border border-[var(--bear)]/25 rounded-2xl px-5 py-4 mono text-xs text-[var(--bear)] mb-4 mt-3">
             {patternsError}
           </div>
         )}
 
         {patternsResult && (
-          <div className="bg-[#0D1218] border border-[#1C2530] rounded-2xl p-6 fade-up mt-3">
-            <div className="mono text-[10px] text-[#7C8896] mb-4">
+          <div className="bg-[var(--bg-panel)] border border-[var(--bg-hover)] rounded-2xl p-6 fade-up mt-3">
+            <div className="mono text-[10px] text-[var(--text-2)] mb-4">
               {patternsResult.totalClosed} closed signals total — {patternsResult.totalWins} wins, {patternsResult.totalLosses} losses.
             </div>
 
             {patternsResult.patterns && patternsResult.patterns.length > 0 ? (
               <div className="space-y-3">
                 {patternsResult.patterns.map((p: string, i: number) => (
-                  <div key={i} className="flex gap-2.5 text-sm text-[#EDEFF2] leading-relaxed">
-                    <span className="text-[#F5A623] flex-shrink-0">•</span>
+                  <div key={i} className="flex gap-2.5 text-sm text-[var(--text-1)] leading-relaxed">
+                    <span className="text-[var(--warn)] flex-shrink-0">•</span>
                     <span>{p}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="mono text-[11px] text-[#7C8896]">{patternsResult.note}</div>
+              <div className="mono text-[11px] text-[var(--text-2)]">{patternsResult.note}</div>
             )}
           </div>
         )}
 
         {!patternsResult && !patternsLoading && !patternsError && (
-          <div className="bg-[#0D1218] border border-[#1C2530] border-dashed rounded-2xl p-10 text-center mt-3">
-            <div className="mono text-[11px] text-[#7C8896]">
+          <div className="bg-[var(--bg-panel)] border border-[var(--bg-hover)] border-dashed rounded-2xl p-10 text-center mt-3">
+            <div className="mono text-[11px] text-[var(--text-2)]">
               Click &quot;Find Patterns in Closed Signals&quot; to check real closed signals for anything worth bringing back for a Pine change.
             </div>
           </div>

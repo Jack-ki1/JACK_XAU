@@ -132,37 +132,37 @@ function LlmSuccessSection({
   const pct = total > 0 ? Math.round((successCount / total) * 100) : null
 
   return (
-    <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6 mt-5">
-      <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-1">{title}</div>
-      <div className="font-mono text-[10px] text-[#7C8896] mb-4">{subtitle}</div>
+    <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6 mt-5">
+      <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-1">{title}</div>
+      <div className="font-mono text-[10px] text-[var(--text-2)] mb-4">{subtitle}</div>
 
       {total === 0 ? (
-        <div className="text-[#7C8896] font-mono text-sm">No resolved signals yet for this section.</div>
+        <div className="text-[var(--text-2)] font-mono text-sm">No resolved signals yet for this section.</div>
       ) : (
         <div className="flex items-center gap-6 mb-5">
           <div>
             <div className="text-2xl font-bold" style={{ color: accentColor }}>{pct}%</div>
-            <div className="font-mono text-[10px] text-[#7C8896]">success rate</div>
+            <div className="font-mono text-[10px] text-[var(--text-2)]">success rate</div>
           </div>
           <div className="flex gap-6 font-mono text-xs">
-            <div className="text-center"><div className="text-[#34D399] font-bold">{successCount}</div><div className="text-[9px] text-[#7C8896] uppercase mt-1">Successful</div></div>
-            <div className="text-center"><div className="text-[#F87171] font-bold">{total - successCount}</div><div className="text-[9px] text-[#7C8896] uppercase mt-1">Unsuccessful</div></div>
-            <div className="text-center"><div className="text-white font-bold">{total}</div><div className="text-[9px] text-[#7C8896] uppercase mt-1">Total resolved</div></div>
+            <div className="text-center"><div className="text-[var(--bull)] font-bold">{successCount}</div><div className="text-[9px] text-[var(--text-2)] uppercase mt-1">Successful</div></div>
+            <div className="text-center"><div className="text-[var(--bear)] font-bold">{total - successCount}</div><div className="text-[9px] text-[var(--text-2)] uppercase mt-1">Unsuccessful</div></div>
+            <div className="text-center"><div className="text-[var(--text-1)] font-bold">{total}</div><div className="text-[9px] text-[var(--text-2)] uppercase mt-1">Total resolved</div></div>
           </div>
         </div>
       )}
 
-      <details className="bg-[#0F141A] border border-[#1B232C] rounded-lg">
-        <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] text-[#2DD4BF] uppercase tracking-wide">
+      <details className="bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg">
+        <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] text-[var(--accent-blue)] uppercase tracking-wide">
           Show individual results ({total})
         </summary>
         <div className="px-4 pb-3 space-y-1.5">
           {total === 0 ? (
-            <div className="font-mono text-[11px] text-[#7C8896] py-2">Nothing resolved yet.</div>
+            <div className="font-mono text-[11px] text-[var(--text-2)] py-2">Nothing resolved yet.</div>
           ) : data.map((d, i) => (
-            <div key={i} className="font-mono text-[11px] flex justify-between items-center py-1.5 border-t border-[#1B232C] first:border-t-0">
-              <span className="text-[#EDEFF2]">{d.signal_id}</span>
-              <span className={`px-2 py-0.5 rounded ${d.outcome === 'successful' ? 'text-[#2B8CE0] bg-[#2B8CE0]/15' : 'text-[#F87171] bg-[#F87171]/15'}`}>
+            <div key={i} className="font-mono text-[11px] flex justify-between items-center py-1.5 border-t border-[var(--border)] first:border-t-0">
+              <span className="text-[var(--text-1)]">{d.signal_id}</span>
+              <span className={`px-2 py-0.5 rounded ${d.outcome === 'successful' ? 'text-[var(--info)] bg-[var(--info)]/15' : 'text-[var(--bear)] bg-[var(--bear)]/15'}`}>
                 {d.outcome.toUpperCase()}
               </span>
             </div>
@@ -284,130 +284,130 @@ export default function PerformancePage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white">Performance <span className="text-[#3A434D] font-medium">— success rate &amp; analytics</span></h1>
-        <div className="font-mono text-xs text-[#7C8896] mt-2">Track record across every signal logged since engine start</div>
+        <h1 className="text-3xl font-bold text-[var(--text-1)]">Performance <span className="text-[var(--border-strong)] font-medium">— success rate &amp; analytics</span></h1>
+        <div className="font-mono text-xs text-[var(--text-2)] mt-2">Track record across every signal logged since engine start</div>
       </div>
 
-      <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6 mb-5 flex flex-wrap items-center justify-between gap-6">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6 mb-5 flex flex-wrap items-center justify-between gap-6">
         <div className="flex items-center gap-5">
           <svg width="90" height="90" viewBox="0 0 90 90">
-            <circle cx="45" cy="45" r="38" fill="none" stroke="#141A21" strokeWidth="9" />
-            <circle cx="45" cy="45" r="38" fill="none" stroke="#34D399" strokeWidth="9"
+            <circle cx="45" cy="45" r="38" fill="none" style={{ stroke: 'var(--bg-raised)' }} strokeWidth="9" />
+            <circle cx="45" cy="45" r="38" fill="none" style={{ stroke: 'var(--bull)' }} strokeWidth="9"
               strokeDasharray={`${closed.length ? (wins/closed.length)*238.7 : 0} 238.7`} strokeLinecap="round" transform="rotate(-90 45 45)" />
           </svg>
           <div>
-            <div className="text-3xl font-bold text-[#34D399]">{successRate !== null ? successRate + '%' : '—'}</div>
-            <div className="font-mono text-[11px] text-[#7C8896]">{closed.length} signals tracked · {wins} successful</div>
+            <div className="text-3xl font-bold text-[var(--bull)]">{successRate !== null ? successRate + '%' : '—'}</div>
+            <div className="font-mono text-[11px] text-[var(--text-2)]">{closed.length} signals tracked · {wins} successful</div>
           </div>
         </div>
         <div className="flex gap-8 font-mono text-sm">
-          <div className="text-center"><div className="text-[#34D399] text-xl font-bold">{wins}</div><div className="text-[9px] text-[#7C8896] uppercase mt-1">Wins</div></div>
-          <div className="text-center"><div className="text-[#F87171] text-xl font-bold">{losses}</div><div className="text-[9px] text-[#7C8896] uppercase mt-1">Losses</div></div>
+          <div className="text-center"><div className="text-[var(--bull)] text-xl font-bold">{wins}</div><div className="text-[9px] text-[var(--text-2)] uppercase mt-1">Wins</div></div>
+          <div className="text-center"><div className="text-[var(--bear)] text-xl font-bold">{losses}</div><div className="text-[9px] text-[var(--text-2)] uppercase mt-1">Losses</div></div>
           <div className="text-center">
-            <div className={`text-xl font-bold ${netPoints > 0 ? 'text-[#34D399]' : netPoints < 0 ? 'text-[#F87171]' : 'text-white'}`}>
+            <div className={`text-xl font-bold ${netPoints > 0 ? 'text-[var(--bull)]' : netPoints < 0 ? 'text-[var(--bear)]' : 'text-[var(--text-1)]'}`}>
               {closed.length === 0 ? '—' : (netPoints > 0 ? '+' : '') + netPoints}
             </div>
-            <div className="text-[9px] text-[#7C8896] uppercase mt-1">Net Points</div>
+            <div className="text-[9px] text-[var(--text-2)] uppercase mt-1">Net Points</div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6">
-          <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-4">By Signal Type</div>
+        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6">
+          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-4">By Signal Type</div>
           {byTier.length === 0 ? (
-            <div className="text-[#7C8896] font-mono text-sm">No closed signals yet.</div>
+            <div className="text-[var(--text-2)] font-mono text-sm">No closed signals yet.</div>
           ) : byTier.map((t, i) => (
             <div key={i} className="mb-4">
               <div className="flex justify-between font-mono text-sm mb-1.5">
-                <span className="text-[#EDEFF2]">{t.label}</span><span className="text-white">{t.pct !== null ? t.pct + '%' : '—'}</span>
+                <span className="text-[var(--text-1)]">{t.label}</span><span className="text-[var(--text-1)]">{t.pct !== null ? t.pct + '%' : '—'}</span>
               </div>
-              <div className="h-2 bg-[#0F141A] rounded-full overflow-hidden">
-                <div className="h-full bg-[#2DD4BF]" style={{ width: `${t.pct ?? 0}%` }} />
+              <div className="h-2 bg-[var(--bg-raised)] rounded-full overflow-hidden">
+                <div className="h-full bg-[var(--accent-blue)]" style={{ width: `${t.pct ?? 0}%` }} />
               </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6">
-          <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-4">By Session</div>
+        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6">
+          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-4">By Session</div>
           {bySession.map((s, i) => (
             <div key={i} className="flex items-center gap-3 mb-3 font-mono text-xs">
-              <span className="w-16 text-[#7C8896]">{s.name.toUpperCase()}</span>
-              <div className="flex-1 h-3.5 bg-[#0F141A] rounded overflow-hidden flex">
-                <div className="h-full bg-[#34D399]" style={{ width: `${s.winPct}%` }} />
-                <div className="h-full bg-[#F87171]" style={{ width: `${s.lossPct}%` }} />
+              <span className="w-16 text-[var(--text-2)]">{s.name.toUpperCase()}</span>
+              <div className="flex-1 h-3.5 bg-[var(--bg-raised)] rounded overflow-hidden flex">
+                <div className="h-full bg-[var(--bull)]" style={{ width: `${s.winPct}%` }} />
+                <div className="h-full bg-[var(--bear)]" style={{ width: `${s.lossPct}%` }} />
               </div>
-              <span className="w-16 text-right text-[#7C8896]">{s.count ? `${s.winPct}% · ${s.count}` : '—'}</span>
+              <span className="w-16 text-right text-[var(--text-2)]">{s.count ? `${s.winPct}% · ${s.count}` : '—'}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6 mt-5">
-        <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-4">Performance by Grade</div>
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6 mt-5">
+        <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-4">Performance by Grade</div>
         {byGrade.length === 0 ? (
-          <div className="text-[#7C8896] font-mono text-sm">No graded signals resolved yet — populates once closed signals carry a grade score.</div>
+          <div className="text-[var(--text-2)] font-mono text-sm">No graded signals resolved yet — populates once closed signals carry a grade score.</div>
         ) : (
           byGrade.map((g, i) => (
             <div key={i} className="mb-4">
               <div className="flex justify-between font-mono text-sm mb-1.5">
-                <span className="text-[#EDEFF2]">Grade {g.label} <span className="text-[#3A434D]">· {g.count} signals</span></span>
-                <span className="text-white">{g.pct !== null ? g.pct + '%' : '—'}</span>
+                <span className="text-[var(--text-1)]">Grade {g.label} <span className="text-[var(--border-strong)]">· {g.count} signals</span></span>
+                <span className="text-[var(--text-1)]">{g.pct !== null ? g.pct + '%' : '—'}</span>
               </div>
-              <div className="h-2 bg-[#0F141A] rounded-full overflow-hidden">
-                <div className="h-full bg-[#2DD4BF]" style={{ width: `${g.pct ?? 0}%` }} />
+              <div className="h-2 bg-[var(--bg-raised)] rounded-full overflow-hidden">
+                <div className="h-full bg-[var(--accent-blue)]" style={{ width: `${g.pct ?? 0}%` }} />
               </div>
             </div>
           ))
         )}
       </div>
 
-      <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6 mt-5">
-        <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-4">Performance by Timeframe — HTF Confluence</div>
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6 mt-5">
+        <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-4">Performance by Timeframe — HTF Confluence</div>
         {byRung.length === 0 ? (
-          <div className="text-[#7C8896] font-mono text-sm">No resolved signals yet — populates once the closed-signal analysis job runs.</div>
+          <div className="text-[var(--text-2)] font-mono text-sm">No resolved signals yet — populates once the closed-signal analysis job runs.</div>
         ) : (
           byRung.map((t, i) => (
             <div key={i} className="mb-4">
               <div className="flex justify-between font-mono text-sm mb-1.5">
-                <span className="text-[#EDEFF2]">{t.label} <span className="text-[#3A434D]">· {t.count} tracked</span></span>
-                <span className="text-white">{t.pct !== null ? t.pct + '%' : '—'}</span>
+                <span className="text-[var(--text-1)]">{t.label} <span className="text-[var(--border-strong)]">· {t.count} tracked</span></span>
+                <span className="text-[var(--text-1)]">{t.pct !== null ? t.pct + '%' : '—'}</span>
               </div>
-              <div className="h-2 bg-[#0F141A] rounded-full overflow-hidden">
-                <div className="h-full bg-[#34D399]" style={{ width: `${t.pct ?? 0}%` }} />
+              <div className="h-2 bg-[var(--bg-raised)] rounded-full overflow-hidden">
+                <div className="h-full bg-[var(--bull)]" style={{ width: `${t.pct ?? 0}%` }} />
               </div>
             </div>
           ))
         )}
       </div>
 
-      <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6 mt-5">
-        <div className="font-mono text-[11px] tracking-widest text-[#7C8896] uppercase mb-2">Manual Entry Filter — Win Rate by Condition</div>
-        <div className="font-mono text-[10px] text-[#7C8896] mb-4">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6 mt-5">
+        <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-2">Manual Entry Filter — Win Rate by Condition</div>
+        <div className="font-mono text-[10px] text-[var(--text-2)] mb-4">
           Precision signals only. Most informative when the manual entry filter has been toggled off for some period, since that&apos;s when each condition varies between true and false instead of always being true.
         </div>
         {!byManualCondition ? (
-          <div className="text-[#7C8896] font-mono text-sm">No closed Precision signals with filter data yet.</div>
+          <div className="text-[var(--text-2)] font-mono text-sm">No closed Precision signals with filter data yet.</div>
         ) : (
           <div className="space-y-4">
             {byManualCondition.map((c, i) => (
               <div key={i} className="flex items-center justify-between font-mono text-xs gap-4">
-                <span className="text-[#EDEFF2] flex-shrink-0 w-56">{c.label}</span>
+                <span className="text-[var(--text-1)] flex-shrink-0 w-56">{c.label}</span>
                 <div className="flex items-center gap-2 flex-1">
-                  <span className="text-[#34D399] w-24">
-                    True: {c.truePct !== null ? c.truePct + '%' : '—'} <span className="text-[#3A434D]">({c.trueCount})</span>
+                  <span className="text-[var(--bull)] w-24">
+                    True: {c.truePct !== null ? c.truePct + '%' : '—'} <span className="text-[var(--border-strong)]">({c.trueCount})</span>
                   </span>
-                  <div className="flex-1 h-2 bg-[#0F141A] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#34D399]" style={{ width: `${c.truePct ?? 0}%` }} />
+                  <div className="flex-1 h-2 bg-[var(--bg-raised)] rounded-full overflow-hidden">
+                    <div className="h-full bg-[var(--bull)]" style={{ width: `${c.truePct ?? 0}%` }} />
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-1">
-                  <span className="text-[#F87171] w-24">
-                    False: {c.falsePct !== null ? c.falsePct + '%' : '—'} <span className="text-[#3A434D]">({c.falseCount})</span>
+                  <span className="text-[var(--bear)] w-24">
+                    False: {c.falsePct !== null ? c.falsePct + '%' : '—'} <span className="text-[var(--border-strong)]">({c.falseCount})</span>
                   </span>
-                  <div className="flex-1 h-2 bg-[#0F141A] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#F87171]" style={{ width: `${c.falsePct ?? 0}%` }} />
+                  <div className="flex-1 h-2 bg-[var(--bg-raised)] rounded-full overflow-hidden">
+                    <div className="h-full bg-[var(--bear)]" style={{ width: `${c.falsePct ?? 0}%` }} />
                   </div>
                 </div>
               </div>
@@ -428,18 +428,18 @@ export default function PerformancePage() {
         title="LLM Analysis — Analysed Signals Success Rate"
         subtitle="Real win/loss on the LLM's preferred entry/SL/TP, for signals it marked invalid — resolved automatically every 10 minutes against live price data, never self-reported."
         data={analysedSignalsResolved}
-        accentColor="#2DD4BF"
+        accentColor="var(--accent-blue)"
       />
 
       <LlmSuccessSection
         title="News Analysed Signals — Success Rate"
         subtitle="Same principle, scoped to signals that fired during a news window and were given a preferred level by the news-analysis model."
         data={newsSignalsResolved}
-        accentColor="#2B8CE0"
+        accentColor="var(--info)"
       />
 
       {closed.length === 0 && (
-        <div className="mt-5 text-[#7C8896] font-mono text-sm">No resolved signals yet — this fills in once the outcome-resolution job is running.</div>
+        <div className="mt-5 text-[var(--text-2)] font-mono text-sm">No resolved signals yet — this fills in once the outcome-resolution job is running.</div>
       )}
     </div>
   )

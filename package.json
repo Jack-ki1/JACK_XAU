@@ -14,7 +14,8 @@
     "start": "npm run start -w apps/web",
     "lint": "npm run lint -w apps/web",
     "test": "npm run test -w @jack-trade/engine",
-    "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w @jack-trade/engine && npm run typecheck -w @jack-trade/shared"
+    "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w apps/api && npm run typecheck -w @jack-trade/engine && npm run typecheck -w @jack-trade/shared",
+    "check:contrast": "node scripts/contrast-check.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2"

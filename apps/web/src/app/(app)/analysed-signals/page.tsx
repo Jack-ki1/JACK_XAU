@@ -219,24 +219,24 @@ export default function AnalysedSignalsPage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white">Analysed Signals <span className="text-[#3A434D] font-medium">— every signal, LLM-checked</span></h1>
-        <div className="font-mono text-xs text-[#7C8896] mt-2">
+        <h1 className="text-3xl font-bold text-[var(--text-1)]">Analysed Signals <span className="text-[var(--border-strong)] font-medium">— every signal, LLM-checked</span></h1>
+        <div className="font-mono text-xs text-[var(--text-2)] mt-2">
           Every signal from the Signals page is automatically sent to one model for a second opinion — valid confirms the strategy&apos;s own rules were genuinely met, invalid comes with the model&apos;s preferred entry/SL/TP.
         </div>
       </div>
 
-      <div className="bg-[#0B0F14] border border-[#1B232C] rounded-2xl p-4 mb-5 flex items-center justify-between flex-wrap gap-4">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-4 mb-5 flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-5 flex-wrap">
           <div>
-            <div className="font-mono text-[9px] tracking-widest text-[#7C8896] uppercase">Analysis tokens today</div>
-            <div className={`font-mono text-sm font-bold mt-0.5 ${quotaExhausted ? 'text-[#F87171]' : quotaRemaining <= 10 ? 'text-[#F5A623]' : 'text-[#2DD4BF]'}`}>
+            <div className="font-mono text-[9px] tracking-widest text-[var(--text-2)] uppercase">Analysis tokens today</div>
+            <div className={`font-mono text-sm font-bold mt-0.5 ${quotaExhausted ? 'text-[var(--bear)]' : quotaRemaining <= 10 ? 'text-[var(--warn)]' : 'text-[var(--accent-blue)]'}`}>
               {quotaUsed}/{OPENROUTER_DAILY_LIMIT} used
             </div>
           </div>
-          <div className="w-px h-8 bg-[#1B232C]" />
+          <div className="w-px h-8 bg-[var(--border)]" />
           <div>
-            <div className="font-mono text-[9px] tracking-widest text-[#7C8896] uppercase">Model</div>
-            <div className="font-mono text-sm text-white mt-0.5">GPT-OSS 120B (Groq)</div>
+            <div className="font-mono text-[9px] tracking-widest text-[var(--text-2)] uppercase">Model</div>
+            <div className="font-mono text-sm text-[var(--text-1)] mt-0.5">GPT-OSS 120B (Groq)</div>
           </div>
         </div>
         <button
@@ -245,22 +245,22 @@ export default function AnalysedSignalsPage() {
           aria-pressed={enabled}
           className="flex items-center gap-2.5 disabled:opacity-50"
         >
-          <span className="font-mono text-[10px] text-[#7C8896] uppercase tracking-wide">
+          <span className="font-mono text-[10px] text-[var(--text-2)] uppercase tracking-wide">
             {enabled ? 'Analysis on' : 'Analysis off'}
           </span>
-          <span className={`w-9 h-5 rounded-full relative transition-colors ${enabled ? 'bg-[#2DD4BF]' : 'bg-[#2A333D]'}`}>
-            <span className={`w-4 h-4 rounded-full bg-[#05070A] absolute top-0.5 transition-all ${enabled ? 'right-0.5' : 'left-0.5'}`} />
+          <span className={`w-9 h-5 rounded-full relative transition-colors ${enabled ? 'bg-[var(--accent-blue)]' : 'bg-[var(--border-strong)]'}`}>
+            <span className={`w-4 h-4 rounded-full bg-[var(--bg-app)] absolute top-0.5 transition-all ${enabled ? 'right-0.5' : 'left-0.5'}`} />
           </span>
         </button>
       </div>
 
       {!enabled && (
-        <div className="bg-[#F5A623]/10 border border-[#F5A623]/25 rounded-2xl px-5 py-4 mono text-xs text-[#F5A623] mb-5">
+        <div className="bg-[var(--warn)]/10 border border-[var(--warn)]/25 rounded-2xl px-5 py-4 mono text-xs text-[var(--warn)] mb-5">
           Analysed Signals is paused — new signals will keep appearing on the Signals page as normal, but won&apos;t be sent for LLM analysis until you turn this back on.
         </div>
       )}
       {enabled && quotaExhausted && (
-        <div className="bg-[#F87171]/10 border border-[#F87171]/25 rounded-2xl px-5 py-4 mono text-xs text-[#F87171] mb-5">
+        <div className="bg-[var(--bear)]/10 border border-[var(--bear)]/25 rounded-2xl px-5 py-4 mono text-xs text-[var(--bear)] mb-5">
           Analysis tokens ended for today — resets at 00:00 UTC. New signals will still appear on the Signals page, just without a verdict until the quota resets.
         </div>
       )}
@@ -269,20 +269,20 @@ export default function AnalysedSignalsPage() {
         {(['all', 'open', 'successful', 'unsuccessful'] as const).map(f => (
           <button key={f} onClick={() => setResolutionFilter(f)}
             className={`font-mono text-[11px] uppercase tracking-wide px-4 py-1.5 rounded ${
-              resolutionFilter === f ? 'bg-[#14625A]/40 text-[#2DD4BF] border border-[#2DD4BF]' : 'border border-[#1B232C] text-[#7C8896]'
+              resolutionFilter === f ? 'bg-[var(--accent-blue-solid)] text-[var(--on-accent)] border border-[var(--accent-blue-solid)]' : 'border border-[var(--border)] text-[var(--text-2)]'
             }`}>{f}</button>
         ))}
       </div>
 
       {loadError && (
-        <div className="bg-[#F87171]/10 border border-[#F87171]/25 rounded-2xl px-5 py-4 mono text-xs text-[#F87171] mb-5">
+        <div className="bg-[var(--bear)]/10 border border-[var(--bear)]/25 rounded-2xl px-5 py-4 mono text-xs text-[var(--bear)] mb-5">
           {loadError}
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <div className="bg-[#0B0F14] border border-[#1B232C] border-dashed rounded-2xl p-10 text-center">
-          <div className="mono text-[11px] text-[#7C8896]">No analysed signals in this view yet — waiting on live signal feed.</div>
+        <div className="bg-[var(--bg-panel)] border border-[var(--border)] border-dashed rounded-2xl p-10 text-center">
+          <div className="mono text-[11px] text-[var(--text-2)]">No analysed signals in this view yet — waiting on live signal feed.</div>
         </div>
       ) : (
         <div className="space-y-4 mb-8">
@@ -292,53 +292,53 @@ export default function AnalysedSignalsPage() {
             // its own real status directly, not just buried in the
             // bottom Resolved section.
             const statusBadge = sig.resolution === 'open'
-              ? { label: 'OPEN', color: '#F5A623' }
+              ? { label: 'OPEN', color: 'var(--warn)' }
               : sig.resolution === 'successful'
-                ? { label: 'TP HIT', color: '#34D399' }
-                : { label: 'SL HIT', color: '#F87171' }
+                ? { label: 'TP HIT', color: 'var(--bull)' }
+                : { label: 'SL HIT', color: 'var(--bear)' }
             return (
-              <div key={sig.rowId} className="bg-[#0B0F14] border border-[#1B232C] rounded-xl overflow-hidden">
-                <div className="p-5 flex justify-between items-start flex-wrap gap-3 border-b border-[#1B232C]">
+              <div key={sig.rowId} className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl overflow-hidden">
+                <div className="p-5 flex justify-between items-start flex-wrap gap-3 border-b border-[var(--border)]">
                   <div>
-                    <span className="font-bold text-white text-base flex items-center gap-2 flex-wrap">
-                      {sig.direction === 'buy' ? <span className="text-[#34D399]">▲</span> : <span className="text-[#F87171]">▼</span>}
+                    <span className="font-bold text-[var(--text-1)] text-base flex items-center gap-2 flex-wrap">
+                      {sig.direction === 'buy' ? <span className="text-[var(--bull)]">▲</span> : <span className="text-[var(--bear)]">▼</span>}
                       {sig.direction.toUpperCase()} {sig.symbol}
-                      <span className="font-mono text-[10px] px-2 py-0.5 rounded border border-[#2DD4BF] text-[#2DD4BF]">
+                      <span className="font-mono text-[10px] px-2 py-0.5 rounded border border-[var(--accent-blue)] text-[var(--accent-blue)]">
                         {sig.signal_type === 'precision' ? 'PRECISION' : 'SNIPER CONFIRMATION'}
                       </span>
                       <span className="font-mono text-[10px] px-2 py-0.5 rounded border font-bold" style={{ borderColor: statusBadge.color, color: statusBadge.color }}>
                         {statusBadge.label}
                       </span>
                     </span>
-                    <div className="font-mono text-[10px] text-[#7C8896] mt-1.5">{formatKenyaTime(sig.created_at)}</div>
+                    <div className="font-mono text-[10px] text-[var(--text-2)] mt-1.5">{formatKenyaTime(sig.created_at)}</div>
                   </div>
-                  <div className="font-mono text-xs text-[#7C8896] text-right">
-                    <div>Entry <span className="text-white">{sig.entry != null ? Number(sig.entry).toFixed(3) : '—'}</span></div>
-                    <div>SL <span className="text-[#F87171]">{sig.sl != null ? Number(sig.sl).toFixed(3) : '—'}</span> · TP <span className="text-[#34D399]">{sig.tp != null ? Number(sig.tp).toFixed(3) : '—'}</span> · R:R <span className="text-white">{sig.rr != null ? '1:' + sig.rr : '—'}</span></div>
+                  <div className="font-mono text-xs text-[var(--text-2)] text-right">
+                    <div>Entry <span className="text-[var(--text-1)]">{sig.entry != null ? Number(sig.entry).toFixed(3) : '—'}</span></div>
+                    <div>SL <span className="text-[var(--bear)]">{sig.sl != null ? Number(sig.sl).toFixed(3) : '—'}</span> · TP <span className="text-[var(--bull)]">{sig.tp != null ? Number(sig.tp).toFixed(3) : '—'}</span> · R:R <span className="text-[var(--text-1)]">{sig.rr != null ? '1:' + sig.rr : '—'}</span></div>
                   </div>
                 </div>
 
-                <div className="p-5 bg-[#0F141A]">
+                <div className="p-5 bg-[var(--bg-raised)]">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="font-mono text-[10px] tracking-widest text-[#7C8896] uppercase">{sig.llm_model} verdict</span>
-                    <span className={`font-mono text-[10px] px-3 py-1 rounded border ${isValid ? 'text-[#2DD4BF] border-[#2DD4BF]' : 'text-[#F87171] border-[#F87171]'}`}>
+                    <span className="font-mono text-[10px] tracking-widest text-[var(--text-2)] uppercase">{sig.llm_model} verdict</span>
+                    <span className={`font-mono text-[10px] px-3 py-1 rounded border ${isValid ? 'text-[var(--accent-blue)] border-[var(--accent-blue)]' : 'text-[var(--bear)] border-[var(--bear)]'}`}>
                       {isValid ? 'VALID' : 'INVALID'}
                     </span>
                   </div>
-                  <div className="text-sm text-[#EDEFF2] leading-relaxed mb-3">{sig.reasoning}</div>
+                  <div className="text-sm text-[var(--text-1)] leading-relaxed mb-3">{sig.reasoning}</div>
                   {!isValid && sig.llm_entry != null && (
-                    <div className="grid grid-cols-3 gap-2.5 mt-3 pt-3 border-t border-[#1B232C]">
-                      <div className="bg-[#0B0F14] rounded-lg p-2.5">
-                        <div className="text-[9px] text-[#7C8896] uppercase tracking-wide mb-1 font-mono">Preferred entry</div>
-                        <div className="text-white font-mono text-sm">{sig.llm_entry != null ? Number(sig.llm_entry).toFixed(3) : '—'}</div>
+                    <div className="grid grid-cols-3 gap-2.5 mt-3 pt-3 border-t border-[var(--border)]">
+                      <div className="bg-[var(--bg-panel)] rounded-lg p-2.5">
+                        <div className="text-[9px] text-[var(--text-2)] uppercase tracking-wide mb-1 font-mono">Preferred entry</div>
+                        <div className="text-[var(--text-1)] font-mono text-sm">{sig.llm_entry != null ? Number(sig.llm_entry).toFixed(3) : '—'}</div>
                       </div>
-                      <div className="bg-[#0B0F14] rounded-lg p-2.5">
-                        <div className="text-[9px] text-[#7C8896] uppercase tracking-wide mb-1 font-mono">Preferred SL</div>
-                        <div className="text-[#F87171] font-mono text-sm">{sig.llm_sl != null ? Number(sig.llm_sl).toFixed(3) : '—'}</div>
+                      <div className="bg-[var(--bg-panel)] rounded-lg p-2.5">
+                        <div className="text-[9px] text-[var(--text-2)] uppercase tracking-wide mb-1 font-mono">Preferred SL</div>
+                        <div className="text-[var(--bear)] font-mono text-sm">{sig.llm_sl != null ? Number(sig.llm_sl).toFixed(3) : '—'}</div>
                       </div>
-                      <div className="bg-[#0B0F14] rounded-lg p-2.5">
-                        <div className="text-[9px] text-[#7C8896] uppercase tracking-wide mb-1 font-mono">Preferred TP · R:R</div>
-                        <div className="text-[#34D399] font-mono text-sm">{sig.llm_tp != null ? Number(sig.llm_tp).toFixed(3) : '—'} · 1:{sig.llm_rr}</div>
+                      <div className="bg-[var(--bg-panel)] rounded-lg p-2.5">
+                        <div className="text-[9px] text-[var(--text-2)] uppercase tracking-wide mb-1 font-mono">Preferred TP · R:R</div>
+                        <div className="text-[var(--bull)] font-mono text-sm">{sig.llm_tp != null ? Number(sig.llm_tp).toFixed(3) : '—'} · 1:{sig.llm_rr}</div>
                       </div>
                     </div>
                   )}
@@ -349,27 +349,27 @@ export default function AnalysedSignalsPage() {
         </div>
       )}
 
-      <div className="pt-6 border-t border-[#1B232C]">
+      <div className="pt-6 border-t border-[var(--border)]">
         <div className="mb-3">
-          <div className="font-mono text-[10px] tracking-[0.3em] text-[#F5A623] uppercase mb-1">Deterministic, Not AI-Generated</div>
-          <h2 className="text-lg font-bold text-white">
-            LLM-Preferred Levels — Resolved <span className="text-[#7C8896] font-normal text-sm ml-2">— checked against real price data automatically</span>
+          <div className="font-mono text-[10px] tracking-[0.3em] text-[var(--warn)] uppercase mb-1">Deterministic, Not AI-Generated</div>
+          <h2 className="text-lg font-bold text-[var(--text-1)]">
+            LLM-Preferred Levels — Resolved <span className="text-[var(--text-2)] font-normal text-sm ml-2">— checked against real price data automatically</span>
           </h2>
         </div>
-        <div className="font-mono text-[10px] text-[#7C8896] mb-4">
+        <div className="font-mono text-[10px] text-[var(--text-2)] mb-4">
           {resolvedCount} of {signals.length} analysed signals resolved so far — {successCount} successful. Whether an LLM&apos;s preferred level actually won or lost is always computed from real market data, never reported by the model itself.
         </div>
-        <details className="bg-[#0B0F14] border border-[#1B232C] rounded-xl">
-          <summary className="cursor-pointer px-5 py-3.5 font-mono text-xs text-[#2DD4BF] uppercase tracking-wide">
+        <details className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl">
+          <summary className="cursor-pointer px-5 py-3.5 font-mono text-xs text-[var(--accent-blue)] uppercase tracking-wide">
             Show all resolved LLM-preferred levels ({resolvedCount})
           </summary>
           <div className="px-5 pb-4 space-y-1.5">
             {signals.filter(s => s.resolution !== 'open').length === 0 ? (
-              <div className="font-mono text-[11px] text-[#7C8896] py-2">Nothing resolved yet.</div>
+              <div className="font-mono text-[11px] text-[var(--text-2)] py-2">Nothing resolved yet.</div>
             ) : signals.filter(s => s.resolution !== 'open').map(s => (
-              <div key={s.rowId} className="font-mono text-[11px] flex justify-between items-center py-1.5 border-t border-[#1B232C] first:border-t-0">
-                <span className="text-[#EDEFF2]">{s.signal_id}</span>
-                <span className={`px-2 py-0.5 rounded ${s.resolution === 'successful' ? 'text-[#2B8CE0] bg-[#2B8CE0]/15' : 'text-[#F87171] bg-[#F87171]/15'}`}>
+              <div key={s.rowId} className="font-mono text-[11px] flex justify-between items-center py-1.5 border-t border-[var(--border)] first:border-t-0">
+                <span className="text-[var(--text-1)]">{s.signal_id}</span>
+                <span className={`px-2 py-0.5 rounded ${s.resolution === 'successful' ? 'text-[var(--info)] bg-[var(--info)]/15' : 'text-[var(--bear)] bg-[var(--bear)]/15'}`}>
                   {s.resolution.toUpperCase()}
                 </span>
               </div>

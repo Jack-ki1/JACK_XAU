@@ -8,7 +8,7 @@ export default function DemoRibbon() {
   return (
     <div
       role="status"
-      className="px-3 md:px-6 py-1.5 bg-[#F5A623]/10 border-b border-[#F5A623]/30 font-mono text-[11px] text-[#F5A623] text-center"
+      className="px-3 md:px-6 py-1.5 bg-[var(--warn)]/10 border-b border-[var(--warn)]/30 font-mono text-[11px] text-[var(--warn)] text-center"
     >
       {DEMO_RIBBON_TEXT}
     </div>
