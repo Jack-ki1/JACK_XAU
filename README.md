@@ -23,18 +23,31 @@ npm run lint                     # eslint, must be clean
 CI (`.github/workflows/ci.yml`) runs install → typecheck → lint → build with
 empty credentials, so demo-mode boot is enforced on every push.
 
-## Structure
+## Structure (monorepo, Phase 2+)
 
 ```text
-app/(app)/   overview, signals, analysed-signals, news-signals,
-             performance, analysis, backtest, settings (direct-access pages)
-app/api/     13 routes: resolvers, analysers, calendar, backtest, transitions
-components/  Sidebar, Topbar, DemoRibbon (shell; replaced by workspace in P4)
-lib/         sessions (DST-aware), priceLevels, points, types (shared shapes),
-             env (zod-validated config), routeGuard, rateLimit, demo fixtures,
-             analysis/analyseSignal, backtest/engine
-docs/        AUDIT.md, DATA_MODEL.md, UX_CRITIQUE.md (+ ARCHITECTURE, RUNBOOK later)
-supabase/    migrations (from Phase 1 on)
+apps/web/src/
+  app/(app)/   overview, signals, analysed-signals, news-signals,
+               performance, analysis, backtest, settings (direct-access pages)
+  app/api/     13 routes (Phase 3 moves these into apps/api per §4.5)
+  components/  Sidebar, Topbar, DemoRibbon (shell; replaced by workspace in P4)
+  lib/         priceLevels, env, routeGuard, rateLimit, demo, supabaseClient,
+               analysis/analyseSignal (I/O-bound; API-owned from Phase 3)
+packages/engine/src/
+  sessions.ts  DST-aware sessions (pure) · points.ts · levels.ts (pure breaks)
+  analysis.ts  verdict/RR rules (pure) · backtest/{types,boxChain,swings,
+               simulate,generate,stats}.ts (split from one 918-line file)
+  test/        vitest: DST edges, points, levels, analysis, golden backtest
+packages/shared/src/  types.ts + schemas.ts (zod contracts for web and api)
+packages/config/      shared tsconfig base
+docs/          AUDIT.md, DATA_MODEL.md, UX_CRITIQUE.md, adr/
+supabase/      migrations (from Phase 1 on)
+```
+
+Root scripts: `dev` / `build` / `start` (web), `test` (engine), `lint`
+(web), `typecheck` (all three). `dev:api` / `build:all` activate in Phase 3.
+Golden rule: `packages/engine` imports nothing from Node, DOM, Supabase or
+fetch — time is passed in, so tests are deterministic.
 ```
 
 ## Data flow

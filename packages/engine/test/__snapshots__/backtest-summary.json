@@ -1,0 +1,52 @@
+{
+  "avgPointsPerSignal": null,
+  "byGrade": {
+    "0-2 (weak)": {
+      "total": 0,
+      "winRate": null,
+      "wins": 0,
+    },
+    "3-4 (moderate)": {
+      "total": 0,
+      "winRate": null,
+      "wins": 0,
+    },
+    "5-7 (strong)": {
+      "total": 0,
+      "winRate": null,
+      "wins": 0,
+    },
+  },
+  "byPath": {
+    "setup_a": {
+      "total": 0,
+      "winRate": null,
+      "wins": 0,
+    },
+    "setup_b": {
+      "total": 0,
+      "winRate": null,
+      "wins": 0,
+    },
+  },
+  "byRRLevel": {},
+  "bySession": {},
+  "byType": {
+    "precision": {
+      "total": 0,
+      "winRate": null,
+      "wins": 0,
+    },
+    "sniper_confirmation": {
+      "total": 0,
+      "winRate": null,
+      "wins": 0,
+    },
+  },
+  "losses": 0,
+  "netPoints": 0,
+  "stillOpen": 0,
+  "total": 0,
+  "winRate": null,
+  "wins": 0,
+}

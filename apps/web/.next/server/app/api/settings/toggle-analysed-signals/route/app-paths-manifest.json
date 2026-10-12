@@ -1,0 +1,3 @@
+{
+  "/api/settings/toggle-analysed-signals/route": "app/api/settings/toggle-analysed-signals/route.js"
+}
