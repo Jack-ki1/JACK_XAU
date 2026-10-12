@@ -44,9 +44,8 @@ export default function NewsSignalsPage() {
 
   const checkNewsWindow = useCallback(async () => {
     try {
-      const res = await fetch('/api/news-window-status')
-      const data = await res.json()
-      setActiveEvent(data.active ? { label: data.event.label, time: data.event.time } : null)
+      const data = await api<{ active: boolean; event: { label: string; time: string } | null }>('/news/window')
+      setActiveEvent(data.active && data.event ? { label: data.event.label, time: data.event.time } : null)
     } catch {
       setActiveEvent(null)
     }

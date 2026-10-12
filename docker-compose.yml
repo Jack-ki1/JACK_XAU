@@ -1,0 +1,44 @@
+# JACK TRADE — full desk (web + api). Copy .env.example → .env first.
+# Boot without .env works too: demo mode, simulated candles, jobs idle-ish.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3101"
+      API_BASE_URL: http://api:3101
+      CRON_SECRET: ${CRON_SECRET:-}
+      API_TOKEN: ${API_TOKEN:-}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      TWELVEDATA_API_KEY: ${TWELVEDATA_API_KEY:-}
+      TWELVEDATA_API_KEY_RESOLUTION: ${TWELVEDATA_API_KEY_RESOLUTION:-}
+      TWELVEDATA_API_KEY_ANALYSED_SIGNALS: ${TWELVEDATA_API_KEY_ANALYSED_SIGNALS:-}
+      GROQ_API_KEY_ANALYSED_SIGNALS: ${GROQ_API_KEY_ANALYSED_SIGNALS:-}
+      GROQ_API_KEY_NEWS_SIGNALS: ${GROQ_API_KEY_NEWS_SIGNALS:-}
+      JBLANKED_API_KEY: ${JBLANKED_API_KEY:-}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+    ports:
+      - "3101:3101"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      # Same-origin proxy target — service-to-service name, never a secret.
+      API_BASE_URL: http://api:3101
+      API_TOKEN: ${API_TOKEN:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped

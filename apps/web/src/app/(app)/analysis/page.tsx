@@ -80,8 +80,7 @@ export default function AnalysisPage() {
     setPatternsError('')
     setPatternsResult(null)
     try {
-      const res = await fetch('/api/closed-signal-analysis')
-      const data = await res.json()
+      const data = await api<PatternAnalysisResult & { note?: string; error?: string }>('/analysis/closed')
       if (data.error) {
         setPatternsError(data.error)
         writeStored(STORAGE_KEYS.patternsError, data.error)

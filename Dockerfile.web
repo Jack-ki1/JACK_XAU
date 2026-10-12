@@ -1,0 +1,27 @@
+# web — Next.js 16 (apps/web). Build needs NO credentials (demo-mode boot).
+FROM node:20-alpine AS deps
+WORKDIR /repo
+COPY package.json package-lock.json ./
+COPY apps/web/package.json apps/web/
+COPY apps/api/package.json apps/api/
+COPY packages/engine/package.json packages/engine/
+COPY packages/shared/package.json packages/shared/
+COPY packages/config/package.json packages/config/
+RUN npm ci
+
+FROM deps AS build
+COPY . .
+RUN npm run build -w apps/web
+
+FROM node:20-alpine AS run
+WORKDIR /repo
+ENV NODE_ENV=production
+COPY --from=deps /repo/node_modules ./node_modules
+COPY --from=build /repo/packages ./packages
+COPY --from=build /repo/apps/web/.next ./apps/web/.next
+COPY --from=build /repo/apps/web/public ./apps/web/public
+COPY --from=build /repo/apps/web/package.json ./apps/web/
+COPY --from=build /repo/apps/web/next.config.ts ./apps/web/
+COPY package.json ./
+EXPOSE 3000
+CMD ["npm", "run", "start", "-w", "apps/web", "--", "-p", "3000"]

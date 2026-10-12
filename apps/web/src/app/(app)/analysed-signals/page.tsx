@@ -77,9 +77,8 @@ export default function AnalysedSignalsPage() {
   // via the toggle-analysed-signals API route.
   const loadToggleState = useCallback(async () => {
     try {
-      const res = await fetch('/api/settings/toggle-analysed-signals')
-      const data = await res.json()
-      setEnabled(data.enabled !== false)
+      const s = await api<{ analysed_signals_enabled?: boolean }>('/settings')
+      setEnabled(s.analysed_signals_enabled !== false)
     } catch {
       setEnabled(true) // fail open to the default rather than block the page on a network hiccup
     }
@@ -91,16 +90,14 @@ export default function AnalysedSignalsPage() {
     setToggling(true)
     setEnabled(next) // optimistic
     try {
-      const res = await fetch('/api/settings/toggle-analysed-signals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: next }),
+      const data = await api<{ analysed_signals_enabled?: boolean; error?: string }>('/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ analysed_signals_enabled: next }),
       })
-      const data = await res.json()
       if (data.error) {
         setEnabled(!next) // revert on failure
       } else {
-        setEnabled(data.enabled)
+        setEnabled(data.analysed_signals_enabled ?? next)
       }
     } catch {
       setEnabled(!next) // revert on network failure

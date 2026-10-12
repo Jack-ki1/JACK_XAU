@@ -196,6 +196,7 @@ export default function ChartWorkspace() {
           </span>
         ))}
         <span className="ml-auto text-[var(--text-3)]">source: {candles?.source ?? '—'} · {candles?.bars.length ?? 0} bars</span>
+        <span className="text-[var(--text-3)] opacity-70">lightweight-charts · TradingView (Apache-2.0)</span>
       </footer>
     </div>
   )

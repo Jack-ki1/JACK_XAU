@@ -2,7 +2,7 @@
 
 Personal single-user XAUUSD trading desk. No login, no accounts, no multi-user
 logic — the app opens directly on the dashboard. Analysis tool only: signals,
-review, alerts, journal, backtesting. No order placement, no broker execution.
+review, alerts, backtesting. No order placement, no broker execution.
 
 ## Run it
 
@@ -12,72 +12,86 @@ npm run dev        # web → http://localhost:3000 → /overview
 npm run dev:api    # api → http://127.0.0.1:3101 (jobs run in-process)
 ```
 
-Web without the API still boots: `/api/*` forwarders return documented
-degraded payloads (news inactive, demo ribbon, fail-open defaults).
-For the full desk, run both (docker-compose lands in Phase 8).
+or the full desk in containers:
+
+```bash
+docker compose up --build   # web :3000, api :3101
 ```
 
-With no env vars the app boots in **demo mode** (amber ribbon, fixture data).
-Copy `.env.example` to `.env.local` and fill keys for live data.
+With no env vars everything still boots: **demo mode** (amber ribbon, fixture
+stats), **simulated chart bars** (labelled), jobs idle, repo reads empty.
+Copy `.env.example` → `.env.local` (web) / fill the same file for compose —
+all real keys live in the API (see `docs/RUNBOOK.md` for the secrets matrix).
 
 ```bash
 npm run build && npm run start   # production
-npx tsc --noEmit                 # typecheck (strict)
+npm run typecheck                # strict, all 4 workspaces
 npm run lint                     # eslint, must be clean
+npm run check:contrast           # WCAG AA token gate (3 themes)
+npm run test                     # engine vitest (37 tests, golden snapshot)
 ```
 
-CI (`.github/workflows/ci.yml`) runs install → typecheck → lint → build with
-empty credentials, so demo-mode boot is enforced on every push.
+CI runs typecheck → lint → contrast → test → build with **empty credentials**,
+so demo-mode boot and the no-secrets bundle are enforced on every push.
 
-## Structure (monorepo, Phase 2+)
+## Architecture
 
 ```text
-apps/web/src/
-  app/(app)/   overview, signals, analysed-signals, news-signals,
-               performance, analysis, backtest, settings (direct-access pages)
-  app/api/     13 routes (Phase 3 moves these into apps/api per §4.5)
-  components/  Sidebar, Topbar, DemoRibbon (shell; replaced by workspace in P4)
-  lib/         priceLevels, env, routeGuard, rateLimit, demo, supabaseClient,
-               analysis/analyseSignal (I/O-bound; API-owned from Phase 3)
-packages/engine/src/
-  sessions.ts  DST-aware sessions (pure) · points.ts · levels.ts (pure breaks)
-  analysis.ts  verdict/RR rules (pure) · backtest/{types,boxChain,swings,
-               simulate,generate,stats}.ts (split from one 918-line file)
-  test/        vitest: DST edges, points, levels, analysis, golden backtest
-packages/shared/src/  types.ts + schemas.ts (zod contracts for web and api)
-packages/config/      shared tsconfig base
-docs/          AUDIT.md, DATA_MODEL.md, UX_CRITIQUE.md, adr/
-supabase/      migrations (from Phase 1 on)
+browser ── /api/v1/* (same-origin) ──► web (Next 16) ── server-side token ──► api (Fastify :3101)
+                                                                 ├─ 7 locked background jobs
+                                                                 ├─ providers: TwelveData · Groq · calendar · Finnhub
+                                                                 ├─ repositories ──► Supabase (service key only)
+                                                                 └─ SSE /v1/stream ──► react-query invalidation
+producer (main.py) ── POST /v1/signals/ingest (Bearer)
 ```
 
-Root scripts: `dev` / `build` / `start` (web), `test` (engine), `lint`
-(web), `typecheck` (all three). `dev:api` / `build:all` activate in Phase 3.
-Golden rule: `packages/engine` imports nothing from Node, DOM, Supabase or
-fetch — time is passed in, so tests are deterministic.
+* **Web has zero Supabase code and zero provider keys** — verified by grep;
+  the browser never sees `API_TOKEN` either (injected by the proxy handler).
+* **Design system**: token themes (`midnight` / `graphite` / `daylight`),
+  density, colour-blind-safe direction colours; `⌘K` command palette;
+  every text/background pair gated ≥4.5:1 by `check:contrast` in CI.
+* **Chart workspace**: lightweight-charts candles (live or labelled
+  simulated), PD/PW price lines, timeframe switch, theme-aware.
+
+## Structure (npm workspaces)
+
+```text
+apps/web/         Next 16 app router — shell, chart workspace, blotter,
+                  analytics, backtester, settings. react-query + SSE.
+apps/api/         Fastify /v1 surface, jobs scheduler, providers, repos,
+                  SSE hub. Sole owner of every secret.
+packages/engine/  pure logic: sessions (DST), points, levels, analysis,
+                  backtest (split modules) — no Node/DOM/Supabase/fetch,
+                  time passed in ⇒ deterministic (37 vitest tests).
+packages/shared/  types + zod contracts shared by web and api.
+packages/config/  shared tsconfig base.
+docs/             AUDIT, DATA_MODEL, UX_CRITIQUE, RUNBOOK, adr/, phases.
+supabase/migrations/  0001 baseline · 0002 RLS deny-all (apply-ready).
 ```
 
-## Data flow
-
-TradingView → external ingest (`main.py`, outside this repo) → Supabase
-`signals` → immediate `POST /api/analyse-signal-now` + cron safety nets.
-Background jobs (`check-open-signals` 10m, `check-transitions` 5m,
-`process-news-signals` 5m, `fetch-calendar` daily) are triggered by an
-external cron (e.g. cron-job.org) with `?secret=CRON_SECRET` or an
-`Authorization` header. See `docs/DATA_MODEL.md` for tables and keys.
+Legacy `/api/check-*`-style forwarders still exist so any already-scheduled
+external cron keeps working; migrate to `POST /v1/jobs/:name` (RUNBOOK).
 
 ## Security model (personal app, public repo)
 
-* No user auth by design. Machine routes require `CRON_SECRET`.
-* `POST /api/backtest` and the settings toggle are browser-called: interim
-  per-IP rate limits + `BACKTEST_ENABLED` kill switch (Phase 1). Phase 3 moves
-  all secrets and writes behind a token-guarded API service.
-* No secrets in git: `.env*` is gitignored, `.env.example` documents every key.
-  History scanned clean in Phase 0 — no rotation needed.
-* Recommended: put the deployment behind Tailscale / Cloudflare Access
-  (runbook lands in Phase 8).
+* No user auth by design; every `/v1/*` except `/v1/health` requires a
+  machine secret (`API_TOKEN` bearer or `CRON_SECRET`), constant-time compared.
+* No secrets in git (`.env*` gitignored, `.env.example` documents every key);
+  Phase 0 history scan came back clean.
+* `0002_rls_deny_all.sql` closes the last Critical audit finding — apply once
+  (steps in `docs/RUNBOOK.md`), then anon reads nothing while the desk works.
+* Recommended: deploy behind Tailscale / Cloudflare Access.
+
+## Transformation history
+
+Phased rebuild, one branch + green gate each: `pre-transform` tag →
+P0 audit docs → P1 safety (login removed, guards, CI, demo mode) → P2
+monorepo + engine extraction (golden backtest test) → P3 Fastify API +
+proxy + SSE + jobs → P4 design system + shell → P5 chart workspace +
+blotter → P6 analytics + async backtester → P7 every page on the API
+(web Supabase-free) → P8 Docker, RUNBOOK, polish. See `docs/adr/`.
 
 ## Branding
 
-JACK TRADE throughout (metadata, sidebar, README, package name `jack-trade`).
-Lightweight Charts attribution (Apache-2.0) will appear in the UI footer and
-here once the chart workspace lands (Phase 5).
+JACK TRADE throughout. Lightweight Charts attribution (Apache-2.0):
+chart rendering by TradingView Lightweight Charts.
