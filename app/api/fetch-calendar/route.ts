@@ -32,9 +32,11 @@ function todayUTC() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function extractField(obj: any, candidates: string[]): any {
+function extractField(obj: unknown, candidates: string[]): unknown {
+  if (typeof obj !== 'object' || obj === null) return null
+  const record = obj as Record<string, unknown>
   for (const key of candidates) {
-    if (obj?.[key] !== undefined && obj[key] !== null) return obj[key]
+    if (record[key] !== undefined && record[key] !== null) return record[key]
   }
   return null
 }
@@ -91,17 +93,17 @@ export async function GET(req: Request) {
       return Response.json({ error: `JBlanked HTTP ${res.status}`, detail: data })
     }
 
-    const rawEvents: any[] = Array.isArray(data) ? data : (data?.events ?? data?.results ?? [])
+    const rawEvents: unknown[] = Array.isArray(data) ? (data as unknown[]) : ((data?.events ?? data?.results ?? []) as unknown[])
 
     const rows = rawEvents
-      .map((e: any) => ({
+      .map((e) => ({
         event_time: extractField(e, ['date', 'time', 'event_time', 'datetime']),
         currency: extractField(e, ['currency', 'economy', 'symbol']),
         event_name: extractField(e, ['name', 'event', 'title']),
         impact: extractField(e, ['impact', 'strength', 'category']),
         fetched_for_date: today,
       }))
-      .filter((r: any) => r.event_time) // drop anything we couldn't parse a time for
+      .filter((r) => r.event_time) // drop anything we couldn't parse a time for
 
     if (rows.length > 0) {
       await supabase.from('calendar_events').insert(rows)
@@ -123,7 +125,7 @@ export async function GET(req: Request) {
     }
 
     return Response.json({ fetched: rows.length, date: today })
-  } catch (err: any) {
-    return Response.json({ error: err?.message ?? String(err) })
+  } catch (err: unknown) {
+    return Response.json({ error: err instanceof Error ? err.message : String(err) })
   }
 }

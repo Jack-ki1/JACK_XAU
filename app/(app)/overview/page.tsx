@@ -1,6 +1,9 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import type { HtfConfluenceEntry, SignalRow } from '@/lib/types'
+import { isDemoMode } from '@/lib/env'
+import { demoSignals } from '@/lib/demo'
 
 const TIMEFRAMES = [
   { key: '15', label: '15min' },
@@ -22,7 +25,7 @@ function pointsBetween(a: number, b: number) {
   return Math.round(Math.abs(a - b) / POINT_SIZE)
 }
 
-function netPointsForSignal(sig: any): number {
+function netPointsForSignal(sig: SignalRow): number {
   const entry = sig.entry
   const exits = sig.exits || {}
   if (entry == null) return 0
@@ -36,12 +39,26 @@ function netPointsForSignal(sig: any): number {
 }
 
 export default function OverviewPage() {
-  const [confluence, setConfluence] = useState<any[]>([])
+  const [confluence, setConfluence] = useState<HtfConfluenceEntry[]>([])
   const [selectedTf, setSelectedTf] = useState('15')
   const [stats, setStats] = useState<{ open: number; today: number; successRate: string | null; net: number | null }>({ open: 0, today: 0, successRate: null, net: null })
   const [byType, setByType] = useState<{ type: string; pct: number | null; count: number }[]>([])
 
   const load = useCallback(async () => {
+    // Phase 1 demo mode: fixture preview when unconfigured, never a blank page.
+    if (isDemoMode()) {
+      const closed = demoSignals.filter((s) => s.status === 'closed')
+      const wins = closed.filter((s) => s.final_outcome && s.final_outcome !== 'stopped_out').length
+      setConfluence([])
+      setByType([])
+      setStats({
+        open: demoSignals.filter((s) => s.status === 'open').length,
+        today: demoSignals.length,
+        successRate: closed.length > 0 ? ((wins / closed.length) * 100).toFixed(1) : null,
+        net: closed.length > 0 ? 300 : null,
+      })
+      return
+    }
     const { data: latestSignal } = await supabase
       .from('signals')
       .select('htf_confluence')
@@ -60,14 +77,15 @@ export default function OverviewPage() {
       .eq('status', 'closed')
       .gte('created_at', thirtyDaysAgo.toISOString())
 
-    const wins = (resolved || []).filter((s: any) => s.final_outcome && s.final_outcome !== 'stopped_out').length
-    const total = (resolved || []).length
-    const netPoints = (resolved || []).reduce((sum: number, s: any) => sum + netPointsForSignal(s), 0)
+    const rows = ((resolved || []) as SignalRow[])
+    const wins = rows.filter((s) => s.final_outcome && s.final_outcome !== 'stopped_out').length
+    const total = rows.length
+    const netPoints = rows.reduce((sum: number, s) => sum + netPointsForSignal(s), 0)
 
-    const types = Array.from(new Set((resolved || []).map((s: any) => s.signal_type).filter(Boolean)))
+    const types = Array.from(new Set(rows.map((s) => s.signal_type).filter(Boolean)))
     const byTypeStats = types.map(t => {
-      const group = (resolved || []).filter((s: any) => s.signal_type === t)
-      const g = group.filter((s: any) => s.final_outcome && s.final_outcome !== 'stopped_out').length
+      const group = rows.filter((s) => s.signal_type === t)
+      const g = group.filter((s) => s.final_outcome && s.final_outcome !== 'stopped_out').length
       return {
         type: TYPE_LABEL[t as string] || (t as string).replace(/_/g, ' '),
         pct: group.length ? Math.round((g / group.length) * 100) : null,
@@ -96,7 +114,7 @@ export default function OverviewPage() {
     return () => { supabase.removeChannel(channel) }
   }, [load])
 
-  const selectedState = confluence.find((c: any) => c.tf === selectedTf)
+  const selectedState = confluence.find((c) => c.tf === selectedTf)
   const rawState = selectedState?.state
   const hasData = rawState === 'bullish' || rawState === 'bearish'
   const isBullish = rawState === 'bullish'
@@ -176,7 +194,7 @@ export default function OverviewPage() {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {TIMEFRAMES.map(tf => {
-                const c = confluence.find((x: any) => x.tf === tf.key)
+                const c = confluence.find((x) => x.tf === tf.key)
                 const st = c?.state
                 return (
                   <div key={tf.key} className="bg-[#0F141A] border border-[#1B232C] rounded-lg p-3">

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { hasMachineSecret, unauthorized } from '@/lib/routeGuard'
 
 // Service-role client -- same reasoning as resolve-signals: this route
 // writes ai_reviewed_at server-side and needs to bypass the anon key's
@@ -49,6 +50,12 @@ async function fetchSpotPrice(): Promise<{ price: number | null; usedNow: number
   }
 }
 
+interface FinnhubArticle {
+  datetime?: number;
+  headline?: string;
+  summary?: string;
+}
+
 async function fetchNews(): Promise<{ text: string; ok: boolean }> {
   if (!FINNHUB_KEY || FINNHUB_KEY.includes('paste_your')) {
     return { text: '', ok: false }
@@ -59,8 +66,8 @@ async function fetchNews(): Promise<{ text: string; ok: boolean }> {
     if (!Array.isArray(data) || data.length === 0) {
       return { text: '', ok: false }
     }
-    const top = data.slice(0, 5)
-    const text = top.map((a: any) => {
+    const top = data as FinnhubArticle[]
+    const text = top.slice(0, 5).map((a) => {
       const when = a.datetime ? new Date(a.datetime * 1000).toISOString() : 'unknown time'
       return `- [${when}] ${a.headline}${a.summary ? ' — ' + a.summary : ''}`
     }).join('\n')
@@ -70,7 +77,10 @@ async function fetchNews(): Promise<{ text: string; ok: boolean }> {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Phase 1 (R3): this route spends LLM + quota and writes stamps, and has
+  // no in-app caller — require the machine secret like the other jobs.
+  if (!hasMachineSecret(req)) return unauthorized();
   if (!GROQ_KEY || GROQ_KEY.includes('paste_your')) {
     return Response.json({ error: 'Groq API key not set yet in .env.local (GROQ_API_KEY)' })
   }
@@ -182,14 +192,14 @@ Rules:
 
     const rawText = data?.choices?.[0]?.message?.content || ''
 
-    let parsed: any = null
+    let parsed: unknown = null
     try {
-      parsed = JSON.parse(rawText)
+      parsed = JSON.parse(rawText) as unknown
     } catch {
       return Response.json({ error: 'Groq did not return valid JSON this run — try again.', raw: rawText, used: usedNow, limit: DAILY_LIMIT })
     }
 
-    const assessments = parsed?.assessments
+    const assessments = (parsed as { assessments?: unknown })?.assessments
     if (!Array.isArray(assessments)) {
       return Response.json({ error: 'Groq response was missing the assessments array.', raw: parsed, used: usedNow, limit: DAILY_LIMIT })
     }
@@ -201,7 +211,7 @@ Rules:
     }
 
     return Response.json({ assessments, spot, used: usedNow, limit: DAILY_LIMIT })
-  } catch (e) {
+  } catch {
     return Response.json({ error: 'Groq request failed.', used: usedNow, limit: DAILY_LIMIT })
   }
 }

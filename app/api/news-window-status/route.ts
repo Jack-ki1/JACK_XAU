@@ -15,6 +15,7 @@
 // silently miss real high-impact events over an exact-casing mismatch.
 
 import { createClient } from '@supabase/supabase-js'
+import type { CalendarEventRow } from '@/lib/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -36,7 +37,7 @@ export async function GET() {
     .lte('event_time', windowEnd.toISOString())
     .order('event_time', { ascending: true })
 
-  const highImpact = (data ?? []).filter((e: any) =>
+  const highImpact = ((data ?? []) as CalendarEventRow[]).filter((e) =>
     typeof e.impact === 'string' && e.impact.toLowerCase().includes('high')
   )
 
@@ -44,7 +45,7 @@ export async function GET() {
     return Response.json({ active: false, event: null })
   }
 
-  const e = highImpact[0] as any
+  const e = highImpact[0]
   return Response.json({
     active: true,
     event: {

@@ -7,6 +7,13 @@
 // earlier duplicated files in this project did before being caught.
 
 import { createClient } from '@supabase/supabase-js'
+import type { SignalRow, Verdict } from '@/lib/types'
+
+interface GroqVerdict {
+  verdict: Verdict;
+  reasoning?: string;
+  preferred_rr?: number | null;
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -89,15 +96,15 @@ interface TwelveDataBar {
 }
 
 interface SignalContextLike {
-  signal_type?: string
-  direction?: string
+  signal_type?: string | null
+  direction?: string | null
   entry?: number | null
   path?: string | null
-  grade?: { value?: number; of?: number }
-  exits?: { sl?: number | null; tp?: number | null; rr_selected?: number | null }
-  risk?: { tp_rr?: number | null }
-  htf_confluence?: unknown[]
-  manual_entry_filter?: Record<string, unknown>
+  grade?: { value?: number | null; of?: number | null } | null
+  exits?: { sl?: number | null; tp?: number | null; rr_selected?: number | null } | null
+  risk?: { tp_rr?: number | null } | null
+  htf_confluence?: unknown[] | null
+  manual_entry_filter?: Record<string, unknown> | null
 }
 
 async function fetchPriceContext(): Promise<PriceContext | null> {
@@ -201,7 +208,7 @@ Respond with ONLY this JSON, no other text, no markdown fences:
 {"verdict": "valid" or "invalid", "reasoning": "1-2 sentences, referencing specific grade/confluence/filter values above", "preferred_rr": <one number from the allowed list above, or null if valid>}`
 }
 
-async function callGroq(prompt: string): Promise<any> {
+async function callGroq(prompt: string): Promise<GroqVerdict> {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -239,7 +246,7 @@ async function callGroq(prompt: string): Promise<any> {
   }
   const rawText = data?.choices?.[0]?.message?.content || ''
   const cleaned = rawText.replace(/```json|```/g, '').trim()
-  return JSON.parse(cleaned)
+  return JSON.parse(cleaned) as GroqVerdict
 }
 
 export interface AnalyseResult {
@@ -254,7 +261,7 @@ export interface AnalyseResult {
 // call from either the immediate single-signal path or a batch loop;
 // each call correctly checks/updates quota itself rather than relying
 // on a caller to aggregate.
-export async function analyseOneSignal(sig: any): Promise<AnalyseResult> {
+export async function analyseOneSignal(sig: SignalRow): Promise<AnalyseResult> {
   if (!GROQ_KEY || !process.env.SUPABASE_SERVICE_KEY) {
     return { signal_id: sig.signal_id, outcome: 'missing_config', detail: 'GROQ_API_KEY_ANALYSED_SIGNALS or SUPABASE_SERVICE_KEY not set.' }
   }
@@ -281,10 +288,10 @@ export async function analyseOneSignal(sig: any): Promise<AnalyseResult> {
     let llmTp = sig.exits?.tp ?? null
     let llmRr = sig.risk?.tp_rr ?? sig.exits?.rr_selected ?? null
 
-    if (verdict === 'invalid' && parsed.preferred_rr != null) {
+    if (verdict === 'invalid' && parsed.preferred_rr != null && sig.entry != null && sig.exits?.sl != null) {
       const rr = Number(parsed.preferred_rr)
       const isBuy = sig.direction === 'buy' || sig.direction === 'long'
-      const slDist = Math.abs((sig.entry ?? 0) - (sig.exits?.sl ?? sig.entry ?? 0))
+      const slDist = Math.abs(sig.entry - sig.exits.sl)
       llmTp = isBuy ? sig.entry + slDist * rr : sig.entry - slDist * rr
       llmRr = rr
     }
@@ -303,8 +310,8 @@ export async function analyseOneSignal(sig: any): Promise<AnalyseResult> {
     })
 
     return { signal_id: sig.signal_id, outcome: 'analysed', verdict }
-  } catch (err: any) {
-    const msg = err?.message ?? String(err)
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
     if (/rate limit/i.test(msg) || /resource_exhausted/i.test(msg) || /quota/i.test(msg)) {
       await supabase.from('openrouter_usage').upsert({ usage_date: todayUTC(), key_name: KEY_NAME, count: DAILY_LIMIT })
       return { signal_id: sig.signal_id, outcome: 'stopped_early', detail: msg }

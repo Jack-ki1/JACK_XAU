@@ -1,9 +1,13 @@
 // app/api/backtest/route.ts
 import { createClient } from '@supabase/supabase-js'
+import { getEnv } from '@/lib/env'
+import { apiError } from '@/lib/routeGuard'
+import { checkRateLimit, rateLimited } from '@/lib/rateLimit'
 import {
   runBacktest, summarize, DEFAULT_PARAMS,
   type Bar, type BarsByTF, type BacktestParams,
 } from '@/lib/backtest/engine'
+import type { TwelveDataBar } from '@/lib/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -41,9 +45,9 @@ async function fetchSeriesPaginated(
 
     if (data?.status === 'error' || !Array.isArray(data?.values) || data.values.length === 0) break
 
-    const chunk: Bar[] = data.values.map((v: any) => ({
-      time: v.datetime.replace(' ', 'T') + 'Z',
-      open: parseFloat(v.open), high: parseFloat(v.high), low: parseFloat(v.low), close: parseFloat(v.close),
+    const chunk: Bar[] = (data.values as TwelveDataBar[]).map((v) => ({
+      time: String(v.datetime).replace(' ', 'T') + 'Z',
+      open: parseFloat(String(v.open)), high: parseFloat(String(v.high)), low: parseFloat(String(v.low)), close: parseFloat(String(v.close)),
     }))
     allBars.push(...chunk)
 
@@ -94,6 +98,14 @@ function mergeParams(overrides: Partial<BacktestParams>): BacktestParams {
 }
 
 export async function POST(req: Request) {
+  // Phase 1 (R1, interim): browser-called, so no machine secret possible yet
+  // (Phase 3's same-origin proxy takes over). Until then: kill switch +
+  // per-IP daily cap so one visitor can't drain the Twelve Data quota.
+  if (getEnv().BACKTEST_ENABLED === 'false') {
+    return apiError('disabled', 'Backtesting is disabled (BACKTEST_ENABLED=false).', 403);
+  }
+  const limited = checkRateLimit(req, 'backtest', 10, 86400);
+  if (limited !== null) return rateLimited(limited);
   if (!TD_KEY || TD_KEY.includes('paste_your')) {
     return Response.json({ error: 'Twelve Data API key not set (TWELVEDATA_API_KEY).' })
   }
@@ -183,7 +195,7 @@ export async function POST(req: Request) {
         limit: DAILY_LIMIT,
       },
     })
-  } catch (err: any) {
-    return Response.json({ error: err?.message ?? 'Backtest run failed.' })
+  } catch (err: unknown) {
+    return Response.json({ error: err instanceof Error ? err.message : 'Backtest run failed.' })
   }
 }

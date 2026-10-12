@@ -21,6 +21,7 @@
 // entirely (status is no longer 'open').
 
 import { createClient } from '@supabase/supabase-js'
+import type { RouteResult, TwelveDataBar } from '@/lib/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -62,7 +63,7 @@ const INTERVAL_MAP: Record<string, string> = { '1': '1min', '3': '5min', '5': '5
 
 interface RawBar { time: string; open: number; high: number; low: number }
 
-async function fetchBarsSince(fromIso: string, interval: string): Promise<{ bars: RawBar[]; raw: any }> {
+async function fetchBarsSince(fromIso: string, interval: string): Promise<{ bars: RawBar[]; raw: unknown }> {
   const startParam = new Date(fromIso).toISOString().slice(0, 19).replace('T', ' ')
   const url = `https://api.twelvedata.com/time_series?symbol=XAU/USD&interval=${interval}&start_date=${encodeURIComponent(startParam)}&order=ASC&outputsize=5000&apikey=${TD_KEY}`
   const res = await fetch(url)
@@ -78,8 +79,8 @@ async function fetchBarsSince(fromIso: string, interval: string): Promise<{ bars
   // comparing the two formats as strings gives WRONG answers (a
   // later bar can appear "less than" an earlier cursor purely
   // because 'T' and ' ' sort differently at that character position).
-  const bars: RawBar[] = data.values
-    .map((v: any) => ({ time: v.datetime, open: parseFloat(v.open), high: parseFloat(v.high), low: parseFloat(v.low) }))
+  const bars: RawBar[] = (data.values as TwelveDataBar[])
+    .map((v) => ({ time: v.datetime, open: parseFloat(String(v.open)), high: parseFloat(String(v.high)), low: parseFloat(String(v.low)) }))
     .sort((a: RawBar, b: RawBar) => new Date(a.time).getTime() - new Date(b.time).getTime())
   return { bars, raw: null }
 }
@@ -153,7 +154,7 @@ export async function GET(req: Request) {
 
   let creditsUsedThisRun = 0
   let closedCount = 0
-  const results: any[] = []
+  const results: RouteResult[] = []
 
   for (const [interval, group] of Object.entries(groups)) {
     if (used + creditsUsedThisRun >= DAILY_LIMIT) {

@@ -22,6 +22,19 @@
 // conservative target.
 
 import { createClient } from '@supabase/supabase-js'
+import type { CalendarEventRow, RouteResult, SignalRow } from '@/lib/types'
+
+interface NewsVerdict {
+  verdict: 'valid' | 'invalid';
+  reasoning?: string;
+  preferred_rr?: number | null;
+}
+
+interface FinnhubArticle {
+  datetime?: number;
+  headline?: string;
+  summary?: string;
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -87,11 +100,11 @@ async function getActiveNewsEvent(): Promise<{ label: string; time: string } | n
     .lte('event_time', windowEnd.toISOString())
     .order('event_time', { ascending: true })
 
-  const highImpact = (data ?? []).filter((e: any) =>
+  const highImpact = ((data ?? []) as CalendarEventRow[]).filter((e) =>
     typeof e.impact === 'string' && e.impact.toLowerCase().includes('high')
   )
   if (highImpact.length === 0) return null
-  const e = highImpact[0] as any
+  const e = highImpact[0]
   return { label: `${e.currency ?? ''} ${e.event_name ?? 'economic event'} (${e.impact ?? 'high'} impact)`, time: e.event_time }
 }
 
@@ -104,8 +117,8 @@ async function fetchNews(): Promise<{ text: string; ok: boolean }> {
     const res = await fetch(`https://finnhub.io/api/v1/news?category=forex&token=${FINNHUB_KEY}`)
     const data = await res.json()
     if (!Array.isArray(data) || data.length === 0) return { text: '', ok: false }
-    const top = data.slice(0, 5)
-    const text = top.map((a: any) => {
+    const top = (data as FinnhubArticle[]).slice(0, 5)
+    const text = top.map((a) => {
       const when = a.datetime ? new Date(a.datetime * 1000).toISOString() : 'unknown time'
       return `- [${when}] ${a.headline}${a.summary ? ' -- ' + a.summary : ''}`
     }).join('\n')
@@ -115,7 +128,7 @@ async function fetchNews(): Promise<{ text: string; ok: boolean }> {
   }
 }
 
-function buildPrompt(sig: any, eventLabel: string, newsText: string): string {
+function buildPrompt(sig: SignalRow, eventLabel: string, newsText: string): string {
   const rrLevels = sig.signal_type === 'precision' ? PRECISION_RR_LEVELS : SNIPER_RR_LEVELS
 
   return `A high-impact economic event is active right now: ${eventLabel}. This is happening DURING or immediately around this signal firing.
@@ -137,7 +150,7 @@ Respond with ONLY this JSON, no other text:
 {"verdict": "valid" or "invalid", "reasoning": "1-2 sentences, referencing the specific news/event and how it relates to this direction", "preferred_rr": <one number from the list, or null if valid>}`
 }
 
-async function callGroq(prompt: string): Promise<any> {
+async function callGroq(prompt: string): Promise<NewsVerdict> {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -164,7 +177,7 @@ async function callGroq(prompt: string): Promise<any> {
   }
   const rawText = data?.choices?.[0]?.message?.content || ''
   const cleaned = rawText.replace(/```json|```/g, '').trim()
-  return JSON.parse(cleaned)
+  return JSON.parse(cleaned) as NewsVerdict
 }
 
 export async function GET(req: Request) {
@@ -192,7 +205,7 @@ export async function GET(req: Request) {
   }
 
   const { data: already } = await supabase.from('news_signals').select('signal_id')
-  const processedIds = new Set((already ?? []).map((a: any) => a.signal_id))
+  const processedIds = new Set(((already ?? []) as { signal_id: string }[]).map((a) => a.signal_id))
 
   // Only signals recent enough to still be "during" this window --
   // an old signal from hours ago isn't a genuine news-window signal
@@ -205,7 +218,9 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: true })
     .limit(50)
 
-  const pending = (recentSignals ?? []).filter((s: any) => !processedIds.has(s.signal_id)).slice(0, MAX_SIGNALS_PER_RUN)
+  const pending = ((recentSignals ?? []) as SignalRow[])
+    .filter((s) => !processedIds.has(s.signal_id))
+    .slice(0, MAX_SIGNALS_PER_RUN)
 
   if (pending.length === 0) {
     return Response.json({ activeEvent, checked: 0, processed: 0, used, limit: DAILY_LIMIT })
@@ -215,7 +230,7 @@ export async function GET(req: Request) {
 
   let processedCount = 0
   let creditsUsedThisRun = 0
-  const results: any[] = []
+  const results: RouteResult[] = []
 
   for (const sig of pending) {
     if (used + creditsUsedThisRun >= DAILY_LIMIT) {
@@ -231,10 +246,10 @@ export async function GET(req: Request) {
       let llmTp = sig.exits?.tp ?? null
       let llmRr = sig.risk?.tp_rr ?? sig.exits?.rr_selected ?? null
 
-      if (verdict === 'invalid' && parsed.preferred_rr != null) {
+      if (verdict === 'invalid' && parsed.preferred_rr != null && sig.entry != null && sig.exits?.sl != null) {
         const rr = Number(parsed.preferred_rr)
         const isBuy = sig.direction === 'buy' || sig.direction === 'long'
-        const slDist = Math.abs((sig.entry ?? 0) - (sig.exits?.sl ?? sig.entry ?? 0))
+        const slDist = Math.abs(sig.entry - sig.exits.sl)
         llmTp = isBuy ? sig.entry + slDist * rr : sig.entry - slDist * rr
         llmRr = rr
       }
@@ -256,8 +271,8 @@ export async function GET(req: Request) {
 
       processedCount++
       results.push({ signal_id: sig.signal_id, verdict })
-    } catch (err: any) {
-      results.push({ signal_id: sig.signal_id, outcome: 'error', detail: err?.message ?? String(err) })
+    } catch (err: unknown) {
+      results.push({ signal_id: sig.signal_id, outcome: 'error', detail: err instanceof Error ? err.message : String(err) })
     }
   }
 

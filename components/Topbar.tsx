@@ -70,9 +70,10 @@ function glowStyle(color: string) {
 }
 
 export default function Topbar() {
-  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null)
-  const [marketStatus, setMarketStatus] = useState<{ open: boolean; detail: string } | null>(null)
-  const [eatTime, setEatTime] = useState('—')
+  // Phase 1: lazy initializers instead of setState-in-effect for first paint.
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(() => getActiveSession())
+  const [marketStatus, setMarketStatus] = useState<{ open: boolean; detail: string } | null>(() => getMarketStatus())
+  const [eatTime, setEatTime] = useState(() => getKenyaTime())
   const [lastSignalMs, setLastSignalMs] = useState<number | null>(null)
   const [lastSignalKnown, setLastSignalKnown] = useState(false)
   const [newsWindowActive, setNewsWindowActive] = useState(false)
@@ -92,10 +93,6 @@ export default function Topbar() {
   }
 
   useEffect(() => {
-    setActiveSession(getActiveSession())
-    setMarketStatus(getMarketStatus())
-    setEatTime(getKenyaTime())
-
     async function checkLastSignal() {
       const { data } = await supabase
         .from('signals')
@@ -124,6 +121,7 @@ export default function Topbar() {
       }
     }
     checkNewsWindow()
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial notification load; updates thereafter via interval + realtime
     loadNotifications()
 
     const interval = setInterval(() => {

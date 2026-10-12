@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect -- pathname-driven "mark as seen" sync, idiomatic for this pattern */
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'

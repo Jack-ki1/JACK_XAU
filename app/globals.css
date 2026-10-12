@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, monospace;
+}
+
 :root {
   --bg: #05070A;
   --panel: #0B0F14;
@@ -17,7 +22,7 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }

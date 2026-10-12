@@ -1,7 +1,17 @@
 // app/(app)/backtest/page.tsx
 'use client'
 import { useState } from 'react'
-import { DEFAULT_PARAMS } from '@/lib/backtest/engine'
+import { DEFAULT_PARAMS, type BacktestParams, type SimulatedSignal } from '@/lib/backtest/engine'
+
+interface BacktestMeta {
+  barsCounts: Record<string, number>;
+  oneMinuteRangeActuallyFetched: { earliest: string; latest: string } | null;
+  creditsUsed: number;
+  used: number;
+  limit: number;
+}
+
+interface RateStat { total: number; wins: number; winRate: number | null }
 
 // STAGE SYNC: ConfigOverrides rewritten to match the real, current
 // BacktestParams shape -- targetRR, useManualEntryFilter,
@@ -33,12 +43,12 @@ interface ConfigDraft {
 
 interface ConfigResult {
   name: string
-  params: Record<string, any>
+  params: BacktestParams
   summary: {
     total: number; wins: number; losses: number; stillOpen: number; winRate: number | null
     netPoints: number; avgPointsPerSignal: number | null
-    byType: Record<string, { total: number; wins: number; winRate: number | null }>
-    byPath: Record<string, { total: number; wins: number; winRate: number | null }>
+    byType: Record<string, RateStat>
+    byPath: Record<string, RateStat>
     // STAGE FIX: these three were added to the engine's own
     // BacktestSummary interface but NOT here -- this page declares
     // its own separate inline copy of the shape, so the engine
@@ -48,11 +58,11 @@ interface ConfigResult {
     // already worked, but noting the real risk: two hand-maintained
     // copies of one shape WILL drift again -- this is the second
     // time. Worth importing the type directly if it drifts once more.
-    byRRLevel: Record<string, { total: number; wins: number; winRate: number | null }>
-    byGrade: Record<string, { total: number; wins: number; winRate: number | null }>
-    bySession: Record<string, { total: number; wins: number; winRate: number | null }>
+    byRRLevel: Record<string, RateStat>
+    byGrade: Record<string, RateStat>
+    bySession: Record<string, RateStat>
   }
-  signals: any[]
+  signals: SimulatedSignal[]
   // STAGE ADD: remembering the lesson from the last build failure --
   // this page keeps its OWN inline copy of the response shape, so
   // anything added to the backend MUST be added here too or the
@@ -118,7 +128,7 @@ export default function BacktestPage() {
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<ConfigResult[] | null>(null)
-  const [meta, setMeta] = useState<any>(null)
+  const [meta, setMeta] = useState<BacktestMeta | null>(null)
   const [expandedSignals, setExpandedSignals] = useState<Set<number>>(new Set())
 
   const atVariantCap = extraConfigs.length >= 3
@@ -139,7 +149,7 @@ export default function BacktestPage() {
   function updateConfigName(id: number, name: string) {
     setExtraConfigs(prev => prev.map(c => c.id === id ? { ...c, name } : c))
   }
-  function updateConfigOverride(id: number, key: keyof ConfigOverrides, value: any) {
+  function updateConfigOverride(id: number, key: keyof ConfigOverrides, value: number) {
     setExtraConfigs(prev => prev.map(c => c.id === id ? { ...c, overrides: { ...c.overrides, [key]: value } } : c))
   }
   function toggleOverrideEnabled(id: number, key: keyof ConfigOverrides) {
@@ -185,8 +195,8 @@ export default function BacktestPage() {
         setResults(data.results)
         setMeta(data.meta)
       }
-    } catch (e: any) {
-      setError(e?.message ?? 'Request failed.')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Request failed.')
     } finally {
       setRunning(false)
     }
@@ -224,7 +234,7 @@ export default function BacktestPage() {
           </div>
         </div>
         <div className="font-mono text-[10px] text-[#7C8896] mb-5">
-          Longer ranges cost more Twelve Data credits (1-minute data especially) -- keep this short (a few days to ~2 weeks) unless you specifically need more history. Also worth knowing: TradingView's Bar Replay on a 1-minute chart typically only reaches back a handful of days regardless of plan -- for verifying an older flagged signal, you may need to check it on a coarser timeframe instead.
+          Longer ranges cost more Twelve Data credits (1-minute data especially) -- keep this short (a few days to ~2 weeks) unless you specifically need more history. Also worth knowing: TradingView&apos;s Bar Replay on a 1-minute chart typically only reaches back a handful of days regardless of plan -- for verifying an older flagged signal, you may need to check it on a coarser timeframe instead.
         </div>
 
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -387,7 +397,7 @@ export default function BacktestPage() {
               {r.summary.byPath && (r.summary.byPath.setup_a?.total > 0 || r.summary.byPath.setup_b?.total > 0) && (
                 <div className="space-y-2 mb-4 pt-3 border-t border-[#1B232C]">
                   <div className="font-mono text-[9px] text-[#3A434D] uppercase mb-1">Sniper Confirmation, by path</div>
-                  {Object.entries(r.summary.byPath).map(([path, stats]: [string, any]) => {
+                  {Object.entries(r.summary.byPath).map(([path, stats]) => {
                     const n = stats.total
                     const tier = sampleTier(n)
                     return (
@@ -433,7 +443,7 @@ export default function BacktestPage() {
               {r.summary.byRRLevel && Object.keys(r.summary.byRRLevel).length > 0 && (
                 <div className="space-y-2 mb-4 pt-3 border-t border-[#1B232C]">
                   <div className="font-mono text-[9px] text-[#3A434D] uppercase mb-1">Win rate by R:R level used</div>
-                  {Object.entries(r.summary.byRRLevel).map(([rr, stats]: [string, any]) => {
+                  {Object.entries(r.summary.byRRLevel).map(([rr, stats]) => {
                     const n = stats.total
                     const tier = sampleTier(n)
                     return (
@@ -452,7 +462,7 @@ export default function BacktestPage() {
               {r.summary.byGrade && Object.keys(r.summary.byGrade).length > 0 && (
                 <div className="space-y-2 mb-4 pt-3 border-t border-[#1B232C]">
                   <div className="font-mono text-[9px] text-[#3A434D] uppercase mb-1">Win rate by grade band</div>
-                  {Object.entries(r.summary.byGrade).map(([band, stats]: [string, any]) => {
+                  {Object.entries(r.summary.byGrade).map(([band, stats]) => {
                     const n = stats.total
                     const tier = sampleTier(n)
                     return (
@@ -471,7 +481,7 @@ export default function BacktestPage() {
               {r.summary.bySession && Object.keys(r.summary.bySession).length > 0 && (
                 <div className="space-y-2 mb-4 pt-3 border-t border-[#1B232C]">
                   <div className="font-mono text-[9px] text-[#3A434D] uppercase mb-1">Win rate by session</div>
-                  {Object.entries(r.summary.bySession).map(([session, stats]: [string, any]) => {
+                  {Object.entries(r.summary.bySession).map(([session, stats]) => {
                     const n = stats.total
                     const tier = sampleTier(n)
                     return (

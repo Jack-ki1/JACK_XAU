@@ -6,6 +6,7 @@
 // route know whether to run at all.
 
 import { createClient } from '@supabase/supabase-js'
+import { checkRateLimit, rateLimited } from '@/lib/rateLimit'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -23,6 +24,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  // Phase 1 (R2, interim): browser-called toggle — per-IP cap until the
+  // Phase 3 token proxy owns writes.
+  const limited = checkRateLimit(req, 'settings-toggle', 30, 86400);
+  if (limited !== null) return rateLimited(limited);
   const body = await req.json().catch(() => ({}))
   if (typeof body.enabled !== 'boolean') {
     return Response.json({ error: 'Request body must include a boolean "enabled" field.' }, { status: 400 })

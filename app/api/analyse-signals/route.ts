@@ -15,6 +15,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { analyseOneSignal, getToggleEnabled, DAILY_LIMIT } from '@/lib/analysis/analyseSignal'
+import type { SignalRow, RouteResult } from '@/lib/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -38,7 +39,7 @@ export async function GET(req: Request) {
   }
 
   const { data: already } = await supabase.from('analysed_signals').select('signal_id')
-  const analysedIds = new Set((already ?? []).map((a: any) => a.signal_id))
+  const analysedIds = new Set(((already ?? []) as { signal_id: string }[]).map((a) => a.signal_id))
 
   const { data: recentSignals } = await supabase
     .from('signals')
@@ -46,14 +47,16 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: true })
     .limit(200)
 
-  const pending = (recentSignals ?? []).filter((s: any) => !analysedIds.has(s.signal_id)).slice(0, MAX_SIGNALS_PER_RUN)
+  const pending = ((recentSignals ?? []) as SignalRow[])
+    .filter((s) => !analysedIds.has(s.signal_id))
+    .slice(0, MAX_SIGNALS_PER_RUN)
 
   if (pending.length === 0) {
     return Response.json({ checked: 0, analysed: 0, note: 'Nothing pending -- either the immediate trigger is catching everything, or genuinely no new signals.' })
   }
 
   let analysedCount = 0
-  const results: any[] = []
+  const results: RouteResult[] = []
 
   for (const sig of pending) {
     const result = await analyseOneSignal(sig)

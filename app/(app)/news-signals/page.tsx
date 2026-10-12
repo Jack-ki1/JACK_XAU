@@ -1,6 +1,8 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect -- initial data load + realtime subscription, same pattern as analysed-signals */
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import type { CalendarEventRow, SignalRow, VerdictRow } from '@/lib/types'
 
 interface NewsEvent {
   time: string
@@ -62,7 +64,7 @@ export default function NewsSignalsPage() {
       .order('event_time', { ascending: true })
 
     setTodayEvents(
-      (data ?? []).map((e: any) => ({
+      ((data ?? []) as CalendarEventRow[]).map((e) => ({
         time: new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(new Date(e.event_time)),
         currency: e.currency ?? '',
         event: e.event_name ?? 'Economic event',
@@ -83,15 +85,16 @@ export default function NewsSignalsPage() {
       return
     }
 
-    const signalIds = news.map((n: any) => n.signal_id)
+    const newsRows = ((news ?? []) as VerdictRow[])
+    const signalIds = newsRows.map((n) => n.signal_id)
     const { data: originals } = await supabase
       .from('signals')
       .select('signal_id, symbol, entry, exits')
       .in('signal_id', signalIds)
 
-    const originalsById = new Map((originals ?? []).map((o: any) => [o.signal_id, o]))
+    const originalsById = new Map(((originals ?? []) as SignalRow[]).map((o) => [o.signal_id, o]))
 
-    const merged: NewsSignal[] = news.map((n: any) => {
+    const merged: NewsSignal[] = newsRows.map((n) => {
       const orig = originalsById.get(n.signal_id)
       const resolution: NewsSignal['resolution'] =
         n.status !== 'closed' ? 'open' : n.final_outcome === 'tp_hit' ? 'successful' : 'unsuccessful'
@@ -101,16 +104,16 @@ export default function NewsSignalsPage() {
         signal_id: n.signal_id,
         symbol: orig?.symbol ?? 'XAUUSD',
         direction: (n.direction ?? 'buy') as 'buy' | 'sell',
-        entry: orig?.entry ?? n.llm_entry,
-        sl: orig?.exits?.sl ?? n.llm_sl,
+        entry: orig?.entry ?? n.llm_entry ?? null,
+        sl: orig?.exits?.sl ?? n.llm_sl ?? null,
         tp: orig?.exits?.tp ?? null,
-        created_at: n.created_at,
+        created_at: n.created_at ?? new Date().toISOString(),
         triggering_event: n.triggering_event ?? '',
         news_summary: n.news_summary ?? '',
         verdict: n.verdict,
-        llm_entry: n.llm_entry,
-        llm_sl: n.llm_sl,
-        llm_tp: n.llm_tp,
+        llm_entry: n.llm_entry ?? null,
+        llm_sl: n.llm_sl ?? null,
+        llm_tp: n.llm_tp ?? null,
         reasoning: n.reasoning ?? '',
         resolution,
       }
@@ -161,7 +164,7 @@ export default function NewsSignalsPage() {
       </div>
 
       <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-5 mb-6">
-        <div className="font-mono text-[10px] tracking-widest text-[#7C8896] uppercase mb-3">Today's high-impact events (cached, UTC)</div>
+        <div className="font-mono text-[10px] tracking-widest text-[#7C8896] uppercase mb-3">Today&apos;s high-impact events (cached, UTC)</div>
         {todayEvents.length === 0 ? (
           <div className="font-mono text-[11px] text-[#7C8896]">No cached events yet — waiting on the daily calendar fetch.</div>
         ) : (
@@ -210,7 +213,7 @@ export default function NewsSignalsPage() {
                 <div className="p-5 bg-[#0F141A]">
                   {sig.news_summary && (
                     <>
-                      <div className="font-mono text-[9px] text-[#7C8896] uppercase tracking-wide mb-1.5">What's happening</div>
+                      <div className="font-mono text-[9px] text-[#7C8896] uppercase tracking-wide mb-1.5">What&apos;s happening</div>
                       <div className="text-sm text-[#EDEFF2] leading-relaxed mb-4 pb-4 border-b border-[#1B232C]">{sig.news_summary}</div>
                     </>
                   )}

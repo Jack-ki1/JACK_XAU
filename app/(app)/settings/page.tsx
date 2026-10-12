@@ -12,7 +12,7 @@ export default function SettingsPage() {
     <div className="p-6 md:p-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white">Settings <span className="text-[#3A434D] font-medium">— strategy parameters</span></h1>
-        <div className="font-mono text-xs text-[#7C8896] mt-2">Mirrors the live signal engine's inputs — changes here will push through once wired</div>
+        <div className="font-mono text-xs text-[#7C8896] mt-2">Mirrors the live signal engine&apos;s inputs — changes here will push through once wired</div>
       </div>
 
       <div className="bg-[#0B0F14] border border-[#1B232C] rounded-xl p-6 max-w-2xl mb-5">

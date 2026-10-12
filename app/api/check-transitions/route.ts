@@ -11,6 +11,7 @@
 // "Last known state" tracked in app_settings throughout.
 
 import { createClient } from '@supabase/supabase-js'
+import type { CalendarEventRow } from '@/lib/types'
 import { getActiveSession, isMarketOpen, getUpcomingSession } from '@/lib/sessions'
 import { checkPriceLevelBreaks } from '@/lib/priceLevels'
 
@@ -42,11 +43,11 @@ async function getActiveNewsEvent(): Promise<{ label: string } | null> {
     .lte('event_time', windowEnd.toISOString())
     .order('event_time', { ascending: true })
 
-  const highImpact = (data ?? []).filter((e: any) =>
+  const highImpact = ((data ?? []) as CalendarEventRow[]).filter((e) =>
     typeof e.impact === 'string' && e.impact.toLowerCase().includes('high')
   )
   if (highImpact.length === 0) return null
-  const e = highImpact[0] as any
+  const e = highImpact[0]
   return { label: `${e.currency ?? ''} ${e.event_name ?? 'economic event'} (${e.impact ?? 'high'} impact)` }
 }
 

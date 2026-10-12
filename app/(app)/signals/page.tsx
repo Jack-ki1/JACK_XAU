@@ -1,13 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import type { HtfConfluenceEntry, SignalRow } from '@/lib/types'
 
 const POINT_SIZE = 0.01
 function pointsBetween(a: number, b: number) {
   return Math.round(Math.abs(a - b) / POINT_SIZE)
 }
 
-const TIER_CHAIN = ['15', '60', '240', 'D', 'W', 'M', '12M']
 const TIER_LABELS: Record<string, string> = {
   '15': '15min', '60': '1H', '240': '4H',
   'D': 'Daily', 'W': 'Weekly', 'M': 'Monthly', '12M': 'Year',
@@ -32,14 +32,14 @@ const MANUAL_FILTER_LABELS: { key: string; label: string }[] = [
   { key: 'doji_or_rejection', label: '1m doji or rejection candle' },
 ]
 
-function getExits(sig: any) {
+function getExits(sig: SignalRow) {
   const sl = sig.exits?.sl ?? null
   const tp = sig.exits?.tp ?? null
   const entry = sig.entry ?? null
   return { sl, tp, entry }
 }
 
-function getRiskReward(sig: any, entry: number | null, sl: number | null, tp: number | null) {
+function getRiskReward(sig: SignalRow, entry: number | null, sl: number | null, tp: number | null) {
   if (sig.risk?.sl_distance != null && sig.risk?.tp_distance != null) {
     return {
       riskPoints: Math.round(Math.abs(sig.risk.sl_distance) / POINT_SIZE),
@@ -75,7 +75,7 @@ function formatKenyaTime(iso: string) {
 }
 
 export default function SignalsPage() {
-  const [signals, setSignals] = useState<any[]>([])
+  const [signals, setSignals] = useState<SignalRow[]>([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
@@ -83,7 +83,7 @@ export default function SignalsPage() {
   useEffect(() => {
     async function fetchSignals() {
       const { data } = await supabase.from('signals').select('*').order('created_at', { ascending: false }).limit(50)
-      setSignals(data || [])
+      setSignals((data ?? []) as SignalRow[])
       setLoading(false)
     }
     fetchSignals()
@@ -138,7 +138,7 @@ export default function SignalsPage() {
           {filtered.map(sig => {
             const { sl, tp, entry } = getExits(sig)
             const { riskPoints, rewardPoints, rr } = getRiskReward(sig, entry, sl, tp)
-            const tierLabel = TYPE_LABEL[sig.signal_type] || sig.signal_type?.replace(/_/g, ' ').toUpperCase() || '—'
+            const tierLabel = TYPE_LABEL[sig.signal_type ?? ''] || (sig.signal_type ?? '').replace(/_/g, ' ').toUpperCase() || '—'
             const pathLabel = sig.path ? (PATH_LABELS[sig.path] ?? sig.path) : null
             const gradeValue = sig.grade?.value ?? null
             const gradeOf = sig.grade?.of ?? null
@@ -154,7 +154,7 @@ export default function SignalsPage() {
                 <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                   <span className="font-bold text-white text-base flex items-center gap-2 flex-wrap">
                     {(sig.direction === 'long' || sig.direction === 'buy') ? <span className="text-[#34D399]">▲</span> : <span className="text-[#F87171]">▼</span>}
-                    {sig.direction?.toUpperCase()} {sig.symbol}
+                    {(sig.direction ?? '').toUpperCase()} {sig.symbol}
                     <span className="font-mono text-[10px] px-2 py-0.5 rounded border border-[#2DD4BF] text-[#2DD4BF]">{tierLabel}</span>
                     {pathLabel && (
                       <span className="font-mono text-[10px] px-2 py-0.5 rounded border border-[#3A434D] text-[#3A434D]">{pathLabel}</span>
@@ -223,7 +223,7 @@ export default function SignalsPage() {
                       {!manualFilter ? (
                         <div className="font-mono text-xs text-[#3A434D]">No data recorded for this signal.</div>
                       ) : !manualApplicable ? (
-                        <div className="font-mono text-xs text-[#3A434D]">Not applicable — Sniper Confirmation signals don't use the manual entry filter.</div>
+                        <div className="font-mono text-xs text-[#3A434D]">Not applicable — Sniper Confirmation signals don&apos;t use the manual entry filter.</div>
                       ) : (
                         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                           {MANUAL_FILTER_LABELS.map(({ key, label }) => {
@@ -243,7 +243,7 @@ export default function SignalsPage() {
                       <div>
                         <div className="text-[9px] text-[#7C8896] uppercase tracking-wide mb-2 font-mono">HTF confluence</div>
                         <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
-                          {sig.htf_confluence.map((tf: any, i: number) => (
+                          {sig.htf_confluence.map((tf: HtfConfluenceEntry, i: number) => (
                             <div key={i} className="bg-[#0F141A] rounded p-1.5 text-center">
                               <div className="text-[8px] text-[#3A434D] font-mono">{tf.tf}</div>
                               <div className={`text-[10px] font-mono ${tf.state === 'bullish' ? 'text-[#34D399]' : tf.state === 'bearish' ? 'text-[#F87171]' : 'text-[#7C8896]'}`}>

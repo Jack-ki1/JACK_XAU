@@ -10,6 +10,7 @@
 // resolvers, not a new account.
 
 import { createClient } from '@supabase/supabase-js'
+import type { RouteResult, TwelveDataBar } from '@/lib/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -49,8 +50,8 @@ async function fetchBarsSince(fromIso: string): Promise<RawBar[]> {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
   const data = await res.json()
   if (data?.status === 'error' || !Array.isArray(data?.values)) return []
-  return data.values
-    .map((v: any) => ({ time: v.datetime, open: parseFloat(v.open), high: parseFloat(v.high), low: parseFloat(v.low) }))
+  return (data.values as TwelveDataBar[])
+    .map((v) => ({ time: v.datetime, open: parseFloat(String(v.open)), high: parseFloat(String(v.high)), low: parseFloat(String(v.low)) }))
     .sort((a: RawBar, b: RawBar) => new Date(a.time).getTime() - new Date(b.time).getTime())
 }
 
@@ -144,7 +145,7 @@ export async function GET(req: Request) {
   await incrementUsage(creditsUsedThisRun)
 
   let closedCount = 0
-  const results: any[] = []
+  const results: RouteResult[] = []
 
   for (const sig of invalidOpen) {
     const cursor = sig.last_checked_at ?? sig.created_at

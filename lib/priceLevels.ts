@@ -14,6 +14,7 @@
 // historical daily/weekly bars every 5 minutes.
 
 import { createClient } from '@supabase/supabase-js'
+import type { TwelveDataBar } from '@/lib/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
@@ -57,9 +58,10 @@ async function fetchPreviousCompletedBar(interval: '1day' | '1week'): Promise<{ 
     // entry can be TODAY's still-forming bar -- we want the most
     // recent one that's genuinely a PAST, completed period, not the
     // current in-progress one.
-    const completed = data.values.find((v: any) => v.datetime.slice(0, 10) < today) || data.values[1]
+    const values = data.values as TwelveDataBar[]
+    const completed = values.find((v) => v.datetime.slice(0, 10) < today) || values[1]
     if (!completed) return null
-    return { high: parseFloat(completed.high), low: parseFloat(completed.low) }
+    return { high: parseFloat(String(completed.high)), low: parseFloat(String(completed.low)) }
   } catch {
     return null
   }
