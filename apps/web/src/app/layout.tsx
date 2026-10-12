@@ -4,6 +4,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import ThemeApplier from '@/components/shell/ThemeApplier'
+import Providers from '@/components/shell/Providers'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jbmono', display: 'swap' })
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeApplier />
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

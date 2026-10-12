@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { HtfConfluenceEntry, SignalRow } from '@jack-trade/shared'
+import { api } from '@/lib/apiClient'
+import { isDemoMode } from '@/lib/env'
+import { demoSignals } from '@/lib/demo'
 
 const POINT_SIZE = 0.01
 function pointsBetween(a: number, b: number) {
@@ -75,23 +78,16 @@ function formatKenyaTime(iso: string) {
 }
 
 export default function SignalsPage() {
-  const [signals, setSignals] = useState<SignalRow[]>([])
   const [filter, setFilter] = useState('all')
-  const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
 
-  useEffect(() => {
-    async function fetchSignals() {
-      const { data } = await supabase.from('signals').select('*').order('created_at', { ascending: false }).limit(50)
-      setSignals((data ?? []) as SignalRow[])
-      setLoading(false)
-    }
-    fetchSignals()
-    const channel = supabase.channel('signals-feed')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'signals' }, fetchSignals)
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+  const { data, isPending } = useQuery({
+    queryKey: ['signals', 'blotter'],
+    queryFn: () => api<{ signals: SignalRow[] }>('/signals?limit=50'),
+    staleTime: 10_000,
+  })
+  const signals = isDemoMode() ? demoSignals : (data?.signals ?? [])
+  const loading = !isDemoMode() && isPending
 
   function toggleExpanded(id: number) {
     setExpanded(prev => {

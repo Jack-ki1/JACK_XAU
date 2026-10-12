@@ -1,118 +1,50 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import type { HtfConfluenceEntry, SignalRow } from '@jack-trade/shared'
+// web/app/(app)/overview — Phase 5 chart workspace home.
+// Data comes from the API through react-query (live via SSE invalidation);
+// demo mode (no Supabase) still shows fixture stats, never a blank page.
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import type { HtfConfluenceEntry } from '@jack-trade/shared'
+import { api, type DeskStatus } from '@/lib/apiClient'
+import type { SignalRow } from '@jack-trade/shared'
 import { isDemoMode } from '@/lib/env'
-import { demoSignals } from '@/lib/demo'
+import { demoStats } from '@/lib/demo'
+import ChartWorkspace from '@/components/chart/ChartWorkspace'
+import { Panel, Stat, Skeleton } from '@/components/ui/Panel'
 
 const TIMEFRAMES = [
-  { key: '15', label: '15min' },
-  { key: '60', label: '1H' },
-  { key: '240', label: '4H' },
-  { key: 'D', label: 'Daily' },
-  { key: 'W', label: 'Weekly' },
-  { key: 'M', label: 'Monthly' },
+  { key: '15', label: '15min' }, { key: '60', label: '1H' }, { key: '240', label: '4H' },
+  { key: 'D', label: 'Daily' }, { key: 'W', label: 'Weekly' }, { key: 'M', label: 'Monthly' },
   { key: '12M', label: 'Year' },
 ]
 
-const TYPE_LABEL: Record<string, string> = {
-  sniper_confirmation: 'Sniper Confirmation',
-  precision: 'Precision',
-}
-
-const POINT_SIZE = 0.01
-function pointsBetween(a: number, b: number) {
-  return Math.round(Math.abs(a - b) / POINT_SIZE)
-}
-
-function netPointsForSignal(sig: SignalRow): number {
-  const entry = sig.entry
-  const exits = sig.exits || {}
-  if (entry == null) return 0
-  if (sig.final_outcome === 'stopped_out' && exits.sl != null) {
-    return -pointsBetween(entry, exits.sl)
-  }
-  if (sig.final_outcome === 'tp_hit' && exits.tp != null) {
-    return pointsBetween(entry, exits.tp)
-  }
-  return 0
-}
-
 export default function OverviewPage() {
-  const [confluence, setConfluence] = useState<HtfConfluenceEntry[]>([])
   const [selectedTf, setSelectedTf] = useState('15')
-  const [stats, setStats] = useState<{ open: number; today: number; successRate: string | null; net: number | null }>({ open: 0, today: 0, successRate: null, net: null })
-  const [byType, setByType] = useState<{ type: string; pct: number | null; count: number }[]>([])
 
-  const load = useCallback(async () => {
-    // Phase 1 demo mode: fixture preview when unconfigured, never a blank page.
-    if (isDemoMode()) {
-      const closed = demoSignals.filter((s) => s.status === 'closed')
-      const wins = closed.filter((s) => s.final_outcome && s.final_outcome !== 'stopped_out').length
-      setConfluence([])
-      setByType([])
-      setStats({
-        open: demoSignals.filter((s) => s.status === 'open').length,
-        today: demoSignals.length,
-        successRate: closed.length > 0 ? ((wins / closed.length) * 100).toFixed(1) : null,
-        net: closed.length > 0 ? 300 : null,
-      })
-      return
-    }
-    const { data: latestSignal } = await supabase
-      .from('signals')
-      .select('htf_confluence')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+  const { data: desk, isPending: deskPending } = useQuery({
+    queryKey: ['desk'],
+    queryFn: () => api<DeskStatus>('/desk/status'),
+  })
+  const { data: perf, isPending: perfPending } = useQuery({
+    queryKey: ['performance'],
+    queryFn: () => api<{ winRate: number | null; netPoints: number }>('/performance'),
+  })
+  const { data: recent } = useQuery({
+    queryKey: ['signals', 'recent'],
+    queryFn: () => api<{ signals: SignalRow[] }>('/signals?limit=1'),
+    staleTime: 30_000,
+  })
 
-    setConfluence(latestSignal?.htf_confluence || [])
+  const confluence: HtfConfluenceEntry[] = useMemo(() => {
+    if (isDemoMode()) return []
+    return recent?.signals?.[0]?.htf_confluence ?? []
+  }, [recent])
 
-    const { data: openSignals } = await supabase.from('signals').select('id').eq('status', 'open')
-
-    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const { data: resolved } = await supabase
-      .from('signals')
-      .select('final_outcome,entry,exits,signal_type,created_at')
-      .eq('status', 'closed')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-
-    const rows = ((resolved || []) as SignalRow[])
-    const wins = rows.filter((s) => s.final_outcome && s.final_outcome !== 'stopped_out').length
-    const total = rows.length
-    const netPoints = rows.reduce((sum: number, s) => sum + netPointsForSignal(s), 0)
-
-    const types = Array.from(new Set(rows.map((s) => s.signal_type).filter(Boolean)))
-    const byTypeStats = types.map(t => {
-      const group = rows.filter((s) => s.signal_type === t)
-      const g = group.filter((s) => s.final_outcome && s.final_outcome !== 'stopped_out').length
-      return {
-        type: TYPE_LABEL[t as string] || (t as string).replace(/_/g, ' '),
-        pct: group.length ? Math.round((g / group.length) * 100) : null,
-        count: group.length,
-      }
-    })
-    setByType(byTypeStats)
-
-    const todayStart = new Date(); todayStart.setHours(0,0,0,0)
-    const { data: todaySignals } = await supabase.from('signals').select('id').gte('created_at', todayStart.toISOString())
-
-    setStats({
-      open: openSignals?.length || 0,
-      today: todaySignals?.length || 0,
-      successRate: total > 0 ? ((wins / total) * 100).toFixed(1) : null,
-      net: total > 0 ? netPoints : null,
-    })
-  }, [])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load()
-    const channel = supabase.channel('overview-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'signals' }, load)
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [load])
+  const demo = isDemoMode()
+  const openCount = demo ? demoStats.open : desk?.openCount ?? null
+  const winRate = demo ? demoStats.successRate : perf?.winRate ?? null
+  const net = demo ? demoStats.net : perf?.netPoints ?? null
+  const staleCount = desk?.staleOpenCount ?? 0
 
   const selectedState = confluence.find((c) => c.tf === selectedTf)
   const rawState = selectedState?.state
@@ -122,127 +54,120 @@ export default function OverviewPage() {
   const gaugeDash = hasData ? '465 0' : '0 465'
 
   return (
-    <div className="p-6 md:p-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[var(--text-1)]">Overview <span className="text-[var(--border-strong)] font-medium">— live market cycle &amp; bias</span></h1>
-        <div className="font-mono text-xs text-[var(--text-2)] mt-2">Multi-timeframe signal engine · box-chain state across 8 timeframes</div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6">
-          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-4">Market Cycle</div>
-          <div className="flex flex-col items-center mb-5">
-            <svg width="180" height="180" viewBox="0 0 180 180">
-              <circle cx="90" cy="90" r="74" fill="none" style={{ stroke: 'var(--bg-raised)' }} strokeWidth="12" />
-              <circle
-                cx="90" cy="90" r="74" fill="none"
-                stroke={gaugeColor}
-                strokeWidth="12"
-                strokeDasharray={gaugeDash}
-                strokeLinecap="round"
-                transform="rotate(-90 90 90)"
-                opacity="0.9"
-                style={{ transition: 'stroke 0.2s ease' }}
-              />
-            </svg>
-            <div className="text-center -mt-[110px] mb-[80px]">
-              <div className="text-lg font-bold tracking-wide" style={{ color: gaugeColor }}>
-                {rawState === 'pending' ? 'PENDING' : !hasData ? '—' : isBullish ? 'BULLISH' : 'BEARISH'}
-              </div>
-              <div className="font-mono text-[10px] text-[var(--text-2)] mt-1">
-                {TIMEFRAMES.find(t => t.key === selectedTf)?.label} box-chain state
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {TIMEFRAMES.map(tf => (
-              <button
-                key={tf.key}
-                onClick={() => setSelectedTf(tf.key)}
-                className={`font-mono text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                  selectedTf === tf.key
-                    ? 'border-[var(--accent-blue)] bg-[var(--accent-blue)]/10 text-[var(--text-1)]'
-                    : 'border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-strong)]'
-                }`}
-              >
-                {tf.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg p-3.5 font-mono text-[11px] text-[var(--text-2)] leading-relaxed">
-            {!selectedState ? (
-              <>No data yet for this timeframe — waiting on live signal feed.</>
-            ) : (
-              <>
-                <span style={{ color: gaugeColor }} className="font-semibold">
-                  {rawState === 'pending' ? 'Pending' : isBullish ? 'Bullish' : 'Bearish'}
-                </span>
-                {' '}— current box-chain state on the {TIMEFRAMES.find(t => t.key === selectedTf)?.label} timeframe
-                {selectedState.fade_active ? ', price currently outside the box edge' : ''}
-                {selectedState.rejections ? `, ${selectedState.rejections} rejection(s)` : ''}.
-              </>
-            )}
-          </div>
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-1)]">Overview</h1>
+          <div className="eyebrow mt-1">chart workspace · box-chain bias · live desk status</div>
         </div>
-
-        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6">
-          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-4">Timeframe Boxes — box-chain state</div>
-          {confluence.length === 0 ? (
-            <div className="text-[var(--text-2)] font-mono text-sm">No data yet — waiting on live signal feed.</div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {TIMEFRAMES.map(tf => {
-                const c = confluence.find((x) => x.tf === tf.key)
-                const st = c?.state
-                return (
-                  <div key={tf.key} className="bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg p-3">
-                    <div className="font-mono text-[10px] text-[var(--text-2)] uppercase tracking-wide mb-1">{tf.label}</div>
-                    <div className={`font-mono text-sm font-semibold ${st === 'bullish' ? 'text-[var(--bull)]' : st === 'bearish' ? 'text-[var(--bear)]' : 'text-[var(--text-2)]'}`}>
-                      {st === 'bullish' ? 'BULLISH' : st === 'bearish' ? 'BEARISH' : st === 'pending' ? 'PENDING' : '—'}
-                    </div>
-                    {c?.fade_active && <div className="font-mono text-[9px] text-[var(--accent-blue)] mt-0.5">OUTSIDE EDGE</div>}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+        <div className="font-mono text-[10px] text-[var(--text-3)]">
+          last signal: {desk?.lastSignalAt ? new Date(desk.lastSignalAt).toISOString().slice(11, 16) + ' UTC' : '—'}
+          {desk?.stream ? ` · stream: ${desk.stream.subscribers > 0 ? 'live' : 'polling'}` : ''}
         </div>
       </div>
 
-      {byType.length > 0 && (
-        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-5 mb-5">
-          <div className="font-mono text-[11px] tracking-widest text-[var(--text-2)] uppercase mb-3">Success Rate by Signal Type (30d)</div>
-          <div className="flex flex-wrap gap-6">
-            {byType.map((t, i) => (
-              <div key={i}>
-                <div className="font-mono text-[10px] text-[var(--text-2)]">{t.type}</div>
-                <div className={`text-xl font-bold ${t.pct !== null && t.pct >= 50 ? 'text-[var(--bull)]' : t.pct !== null ? 'text-[var(--bear)]' : 'text-[var(--text-1)]'}`}>
-                  {t.pct !== null ? t.pct + '%' : '—'} <span className="text-[var(--border-strong)] text-xs font-normal">· {t.count}</span>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {deskPending && !demo ? (
+          <Skeleton className="h-20" />
+        ) : (
+          <Stat label="Open Signals" value={openCount ?? '—'} />
+        )}
+        <Stat
+          label="Stale >48h"
+          value={staleCount}
+          tone={staleCount > 0 ? 'warn' : undefined}
+          sub={desk ? `unchecked of ${desk.openCount} open` : undefined}
+        />
+        {perfPending && !demo ? (
+          <Skeleton className="h-20" />
+        ) : (
+          <Stat label="Win Rate" value={winRate != null ? `${winRate}%` : '—'} tone="bull" />
+        )}
+        <Stat
+          label="Net Points"
+          value={net == null ? '—' : `${net > 0 ? '+' : ''}${net}`}
+          tone={net == null ? undefined : net > 0 ? 'bull' : net < 0 ? 'bear' : undefined}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2 min-w-0">
+          <ChartWorkspace />
+        </div>
+
+        <div className="space-y-4 min-w-0">
+          <Panel title="Market Cycle — box-chain bias">
+            <div className="flex flex-col items-center">
+              <svg width="150" height="150" viewBox="0 0 180 180">
+                <circle cx="90" cy="90" r="74" fill="none" style={{ stroke: 'var(--bg-raised)' }} strokeWidth="12" />
+                <circle
+                  cx="90" cy="90" r="74" fill="none" stroke={gaugeColor} strokeWidth="12"
+                  strokeDasharray={gaugeDash} strokeLinecap="round" transform="rotate(-90 90 90)" opacity="0.9"
+                  style={{ transition: 'stroke 0.2s ease' }}
+                />
+              </svg>
+              <div className="text-center -mt-[105px] mb-[75px]">
+                <div className="text-lg font-bold tracking-wide" style={{ color: gaugeColor }}>
+                  {rawState === 'pending' ? 'PENDING' : !hasData ? '—' : isBullish ? 'BULLISH' : 'BEARISH'}
                 </div>
+                <div className="eyebrow mt-1">{TIMEFRAMES.find((t) => t.key === selectedTf)?.label} state</div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf.key}
+                  onClick={() => setSelectedTf(tf.key)}
+                  className={`text-[11px] px-2 py-1 rounded border transition-colors ${
+                    selectedTf === tf.key
+                      ? 'border-[var(--accent-blue-solid)] bg-[var(--accent-blue-solid)] text-[var(--on-accent)]'
+                      : 'border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-strong)]'
+                  }`}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 surface-raised p-3 font-mono text-[11px] text-[var(--text-2)] leading-relaxed">
+              {!selectedState ? (
+                'No data yet for this timeframe — waiting on live signal feed.'
+              ) : (
+                <>
+                  <span style={{ color: gaugeColor }} className="font-semibold">
+                    {rawState === 'pending' ? 'Pending' : isBullish ? 'Bullish' : 'Bearish'}
+                  </span>
+                  {' '}— {TIMEFRAMES.find((t) => t.key === selectedTf)?.label} box-chain state
+                  {selectedState.fade_active ? ', price outside box edge' : ''}
+                  {selectedState.rejections ? `, ${selectedState.rejections} rejection(s)` : ''}.
+                </>
+              )}
+            </div>
+          </Panel>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Open Signals', value: stats.open, color: 'text-[var(--text-1)]' },
-          { label: "Today's Signals", value: stats.today, color: 'text-[var(--text-1)]' },
-          { label: 'Success Rate', value: stats.successRate !== null ? stats.successRate + '%' : '—', color: 'text-[var(--bull)]' },
-          {
-            label: 'Net Points (30d)',
-            value: stats.net === null ? '—' : (stats.net > 0 ? '+' : '') + stats.net,
-            color: stats.net === null ? 'text-[var(--text-1)]' : stats.net > 0 ? 'text-[var(--bull)]' : stats.net < 0 ? 'text-[var(--bear)]' : 'text-[var(--text-1)]'
-          },
-        ].map((c, i) => (
-          <div key={i} className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-5">
-            <div className="font-mono text-[10px] tracking-widest text-[var(--text-2)] uppercase mb-2">{c.label}</div>
-            <div className={`text-2xl font-bold ${c.color}`}>{c.value}</div>
-          </div>
-        ))}
+          <Panel title="Timeframe Boxes">
+            {confluence.length === 0 ? (
+              <div className="font-mono text-[11px] text-[var(--text-3)]">
+                No signal feed yet — boxes fill when TradingView pushes a signal.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {TIMEFRAMES.map((tf) => {
+                  const c = confluence.find((x) => x.tf === tf.key)
+                  const st = c?.state
+                  return (
+                    <div key={tf.key} className="surface-raised p-2.5">
+                      <div className="eyebrow !text-[9px] mb-1">{tf.label}</div>
+                      <div className={`font-mono text-xs font-semibold ${st === 'bullish' ? 'text-[var(--bull)]' : st === 'bearish' ? 'text-[var(--bear)]' : 'text-[var(--text-2)]'}`}>
+                        {st === 'bullish' ? 'BULLISH' : st === 'bearish' ? 'BEARISH' : st === 'pending' ? 'PENDING' : '—'}
+                      </div>
+                      {c?.fade_active && <div className="font-mono text-[9px] text-[var(--info)] mt-0.5">OUTSIDE EDGE</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </Panel>
+        </div>
       </div>
     </div>
   )

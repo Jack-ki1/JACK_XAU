@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { Bell, Palette, Command } from 'lucide-react'
-import { supabase } from '@/lib/supabaseClient'
+import { useQuery } from '@tanstack/react-query'
 import { getActiveSession, getMarketStatus, type ActiveSession } from '@jack-trade/engine'
+import { api, type DeskStatus, type NotificationItem } from '@/lib/apiClient'
 import { useUiStore } from '@/lib/uiStore'
 
 function kenyaTime() {
@@ -40,8 +41,6 @@ function notifTime(iso: string): string {
   return `${day}, ${t} EAT`
 }
 
-interface Notification { id: number; type: string; message: string; created_at: string }
-
 const TYPE_DOT: Record<string, string> = {
   news_live: 'var(--info)',
   session_upcoming: 'var(--warn)',
@@ -52,60 +51,37 @@ const TYPE_DOT: Record<string, string> = {
 export default function Topbar({ onOpenPalette }: { onOpenPalette: () => void }) {
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(() => getActiveSession())
   const [marketStatus, setMarketStatus] = useState<{ open: boolean; detail: string } | null>(() => getMarketStatus())
-  const [eatTime, setEatTime] = useState(() => kenyaTime())
-  const [lastSignalMs, setLastSignalMs] = useState<number | null>(null)
-  const [lastSignalKnown, setLastSignalKnown] = useState(false)
-  const [newsWindowActive, setNewsWindowActive] = useState(false)
-  const [newsEventLabel, setNewsEventLabel] = useState('')
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [tick, setTick] = useState(() => Date.now())
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [lastSeenNotifId, setLastSeenNotifId] = useState<number | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const cycleTheme = useUiStore((s) => s.cycleTheme)
   const theme = useUiStore((s) => s.theme)
 
-  const loadNotifications = async () => {
-    const { data } = await supabase
-      .from('notifications').select('id, type, message, created_at')
-      .order('created_at', { ascending: false }).limit(20)
-    setNotifications(data ?? [])
-  }
+  const { data: desk } = useQuery({
+    queryKey: ['desk'],
+    queryFn: () => api<DeskStatus>('/desk/status'),
+    staleTime: 10_000,
+  })
 
   useEffect(() => {
-    async function checkLastSignal() {
-      const { data } = await supabase
-        .from('signals').select('created_at')
-        .order('created_at', { ascending: false }).limit(1)
-      const latest = data?.[0]?.created_at
-      if (latest) setLastSignalMs(Date.now() - new Date(latest).getTime())
-      setLastSignalKnown(true)
-    }
-    checkLastSignal()
-
-    async function checkNews() {
+    async function loadNotifications() {
       try {
-        const res = await fetch('/api/news-window-status')
-        const data = await res.json()
-        setNewsWindowActive(!!data.active)
-        setNewsEventLabel(data.event?.label ?? '')
-      } catch { setNewsWindowActive(false); setNewsEventLabel('') }
+        const res = await api<{ notifications: NotificationItem[] }>('/notifications?limit=20')
+        setNotifications(res.notifications ?? [])
+      } catch {
+        /* API down — keep last known list */
+      }
     }
-    checkNews()
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load; refreshed by interval + realtime
     loadNotifications()
 
     const interval = setInterval(() => {
       setActiveSession(getActiveSession())
       setMarketStatus(getMarketStatus())
-      setEatTime(kenyaTime())
-      setLastSignalMs((p) => (p == null ? null : p + 30_000))
-      checkNews()
+      setTick(Date.now())
       loadNotifications()
     }, 30_000)
-
-    const channel = supabase.channel('shell-notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, loadNotifications)
-      .subscribe()
 
     function onDocClick(e: MouseEvent) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) setShowNotifications(false)
@@ -113,7 +89,6 @@ export default function Topbar({ onOpenPalette }: { onOpenPalette: () => void })
     document.addEventListener('mousedown', onDocClick)
     return () => {
       clearInterval(interval)
-      supabase.removeChannel(channel)
       document.removeEventListener('mousedown', onDocClick)
     }
   }, [])
@@ -126,6 +101,7 @@ export default function Topbar({ onOpenPalette }: { onOpenPalette: () => void })
     })
   }
 
+  const lastSignalMs = desk?.lastSignalAt ? tick - new Date(desk.lastSignalAt).getTime() : null
   const dotColor = stalenessColor(lastSignalMs)
   const hasUnseen = notifications.length > 0 && (lastSeenNotifId === null || notifications[0]!.id > lastSeenNotifId)
 
@@ -137,23 +113,20 @@ export default function Topbar({ onOpenPalette }: { onOpenPalette: () => void })
           <span className="flex items-center gap-1.5 text-[var(--text-1)] font-semibold shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--bull)] animate-pulse" /> XAUUSD
           </span>
-          <span className="text-[var(--text-3)] shrink-0">live price pending</span>
-          <span className="text-[var(--text-2)] hidden sm:inline shrink-0 tnum">{eatTime} EAT</span>
+          <span className="text-[var(--text-3)] shrink-0 tnum">{kenyaTime()} EAT</span>
 
-          {lastSignalKnown && (
+          {desk?.lastSignalAt != null && (
             <span className="flex items-center gap-1.5 shrink-0" title="Time since last signal from TradingView">
               <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: dotColor }} />
               <span className="text-[var(--text-3)]">last signal:</span>
-              <span className="font-bold tnum" style={{ color: dotColor }}>
-                {lastSignalMs == null ? 'none yet' : formatAgo(lastSignalMs)}
-              </span>
+              <span className="font-bold tnum" style={{ color: dotColor }}>{formatAgo(lastSignalMs ?? 0)}</span>
             </span>
           )}
 
-          {newsWindowActive && (
+          {desk?.news?.active && (
             <span
               className="shrink-0 px-2 py-1 rounded border border-[var(--info)] bg-[var(--info)]/15 text-[var(--info)] font-bold"
-              title={newsEventLabel}
+              title={desk.news.event?.label ?? ''}
             >
               NEWS TIME
             </span>

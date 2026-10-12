@@ -10,7 +10,8 @@ import {
   LayoutGrid, Target, CircleCheck, Newspaper, ChartNoAxesColumn,
   Clock3, Sparkles, Settings, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
-import { supabase } from '@/lib/supabaseClient'
+import { useQuery } from '@tanstack/react-query'
+import { api, type DeskStatus } from '@/lib/apiClient'
 import { useUiStore } from '@/lib/uiStore'
 
 const NAV = [
@@ -35,44 +36,23 @@ export default function Sidebar() {
   const [hasNewAnalysed, setHasNewAnalysed] = useState(false)
   const [newsActive, setNewsActive] = useState(false)
 
+  // One desk-status query feeds every badge; DeskEvents (SSE) keeps it fresh.
+  const { data: desk } = useQuery({
+    queryKey: ['desk'],
+    queryFn: () => api<DeskStatus>('/desk/status'),
+    staleTime: 10_000,
+  })
+
   useEffect(() => {
-    async function checkNew(table: string, lsKey: string, set: (v: boolean) => void) {
-      const { data } = await supabase
-        .from(table).select('created_at')
-        .order('created_at', { ascending: false }).limit(1)
-      const latest = data?.[0]?.created_at
-      const lastSeen = localStorage.getItem(lsKey)
-      if (latest && (!lastSeen || new Date(latest) > new Date(lastSeen))) set(true)
-    }
-    checkNew('signals', 'jacktrade_signals_last_seen', setHasNewSignal)
-    checkNew('analysed_signals', 'jacktrade_analysed_signals_last_seen', setHasNewAnalysed)
-
-    async function checkStaleOpen() {
-      const cutoff = new Date(Date.now() - STALE_OPEN_HOURS * 3_600_000).toISOString()
-      const { data } = await supabase
-        .from('signals').select('id').eq('status', 'open')
-        .lt('created_at', cutoff).limit(1)
-      setHasStaleOpen(!!data && data.length > 0)
-    }
-    checkStaleOpen()
-
-    async function checkNews() {
-      try {
-        const res = await fetch('/api/news-window-status')
-        const data = await res.json()
-        setNewsActive(!!data.active)
-      } catch { setNewsActive(false) }
-    }
-    checkNews()
-    const newsInterval = setInterval(checkNews, 60_000)
-
-    const channel = supabase.channel('shell-signal-watch')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'signals' }, () => setHasNewSignal(true))
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'signals' }, checkStaleOpen)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'analysed_signals' }, () => setHasNewAnalysed(true))
-      .subscribe()
-    return () => { supabase.removeChannel(channel); clearInterval(newsInterval) }
-  }, [])
+    const latest = desk?.lastSignalAt
+    const lastSeen = localStorage.getItem('jacktrade_signals_last_seen')
+    setHasNewSignal(!!latest && (!lastSeen || new Date(latest) > new Date(lastSeen)))
+    const latestA = desk?.lastAnalysedAt
+    const lastSeenA = localStorage.getItem('jacktrade_analysed_signals_last_seen')
+    setHasNewAnalysed(!!latestA && (!lastSeenA || new Date(latestA) > new Date(lastSeenA)))
+    setHasStaleOpen((desk?.staleOpenCount ?? 0) > 0)
+    setNewsActive(!!desk?.news?.active)
+  }, [desk])
 
   useEffect(() => {
     if (pathname === '/signals') {

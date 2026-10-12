@@ -3,6 +3,7 @@
 import type { SignalRow } from '@jack-trade/shared';
 import { getDb } from '../repositories/client.js';
 import { calendarWindow, getSetting, listSignals, setSetting } from '../repositories/repos.js';
+import { publish } from '../plugins/sse.js';
 
 export async function getSignals(status?: string, limit = 50) {
   const rows = await listSignals(status, Math.min(limit, 200));
@@ -39,7 +40,9 @@ export async function ingestSignal(body: unknown) {
   };
   const { data, error } = await db.from('signals').insert(row).select().maybeSingle();
   if (error) return { error: error.message };
-  return { signal_id: b.signal_id, outcome: 'ingested' as const, id: (data as { id: number } | null)?.id ?? null };
+  const id = (data as { id: number } | null)?.id ?? null;
+  publish({ kind: 'signal_ingested', signal_id: b.signal_id });
+  return { signal_id: b.signal_id, outcome: 'ingested' as const, id };
 }
 
 export async function getSettings() {
