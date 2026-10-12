@@ -253,7 +253,7 @@ export default function PerformancePage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[var(--text-1)]">Performance <span className="text-[var(--border-strong)] font-medium">— success rate &amp; analytics</span></h1>
+        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-[var(--text-1)]">Performance <span className="text-[var(--text-3)] font-normal">— success rate &amp; analytics</span></h1>
         <div className="font-mono text-xs text-[var(--text-2)] mt-2">Track record across every signal logged since engine start</div>
       </div>
 

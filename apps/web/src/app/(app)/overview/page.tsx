@@ -57,7 +57,7 @@ export default function OverviewPage() {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-1)]">Overview</h1>
+          <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-[var(--text-1)]">Overview</h1>
           <div className="eyebrow mt-1">chart workspace · box-chain bias · live desk status</div>
         </div>
         <div className="font-mono text-[10px] text-[var(--text-3)]">

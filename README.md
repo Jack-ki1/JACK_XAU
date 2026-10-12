@@ -47,9 +47,11 @@ producer (main.py) ── POST /v1/signals/ingest (Bearer)
 
 * **Web has zero Supabase code and zero provider keys** — verified by grep;
   the browser never sees `API_TOKEN` either (injected by the proxy handler).
-* **Design system**: token themes (`midnight` / `graphite` / `daylight`),
-  density, colour-blind-safe direction colours; `⌘K` command palette;
-  every text/background pair gated ≥4.5:1 by `check:contrast` in CI.
+* **Design system**: self-hosted **Geist Sans/Mono** typeface (variable,
+  no Google Fonts at build), bright token themes (`midnight` / `graphite` /
+  `daylight`), density, colour-blind-safe direction colours, glass topbar,
+  ambient gradient wash, `⌘K` command palette; every text/background pair
+  gated ≥4.5:1 by `check:contrast` in CI.
 * **Chart workspace**: lightweight-charts candles (live or labelled
   simulated), PD/PW price lines, timeframe switch, theme-aware.
 

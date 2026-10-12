@@ -107,8 +107,8 @@ export default function AnalysisPage() {
     <div className="p-6 md:p-8 max-w-3xl fade-up">
       <div className="mb-7">
         <div className="mono text-[10px] tracking-[0.3em] text-[var(--info)] uppercase mb-1">Outcome Resolution</div>
-        <h1 className="text-2xl font-bold text-[var(--text-1)]">
-          Analysis <span className="text-[var(--text-2)] font-normal text-base ml-2">— signal outcomes, resolved automatically</span>
+        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-[var(--text-1)]">
+          Analysis <span className="text-[var(--text-3)] font-normal text-base ml-2">— signal outcomes, resolved automatically</span>
         </h1>
       </div>
 

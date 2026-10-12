@@ -1,9 +1,20 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
 
+/* Self-hosted Geist (set by next/font/local on <html>) aliased to the
+ * legacy token names so .tnum / .eyebrow / font-mono keep resolving. */
+:root {
+  --font-inter: var(--font-geist-sans);
+  --font-jbmono: var(--font-geist-mono);
+}
+
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -11,8 +22,21 @@ body {
   color: var(--text-1);
   font-family: var(--font-sans);
   font-size: var(--text-base, 13px);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent-blue) 35%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 ::-webkit-scrollbar-track { background: transparent; }

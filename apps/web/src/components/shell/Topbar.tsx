@@ -106,8 +106,8 @@ export default function Topbar({ onOpenPalette }: { onOpenPalette: () => void })
   const hasUnseen = notifications.length > 0 && (lastSeenNotifId === null || notifications[0]!.id > lastSeenNotifId)
 
   return (
-    <header className="sticky top-0 z-40 bg-[var(--bg-panel)] border-b border-[var(--border)]">
-      <div className="h-[2px] bg-gradient-to-r from-[var(--accent-gold)] via-[var(--accent-gold)]/50 to-transparent" />
+    <header className="sticky top-0 z-40 bg-[var(--bg-panel)]/85 backdrop-blur-md border-b border-[var(--border)]">
+      <div className="h-[2px] bg-gradient-to-r from-[var(--accent-gold)] via-[var(--accent-blue)]/45 to-transparent" />
       <div className="flex items-center gap-3 px-3 md:px-4 h-11">
         <div className="flex items-center gap-3 md:gap-4 overflow-x-auto whitespace-nowrap flex-1 min-w-0 font-mono text-[11px]">
           <span className="flex items-center gap-1.5 text-[var(--text-1)] font-semibold shrink-0">

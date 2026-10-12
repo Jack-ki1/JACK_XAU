@@ -257,7 +257,7 @@ export default function BacktestPage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[var(--text-1)]">Backtest <span className="text-[var(--border-strong)] font-medium">— historical simulation</span></h1>
+        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-[var(--text-1)]">Backtest <span className="text-[var(--text-3)] font-normal">— historical simulation</span></h1>
         <div className="font-mono text-xs text-[var(--text-2)] mt-2">
           Runs the current live Pine logic (or your own parameter variants) against real historical price data. Not the actual Pine script executing -- a hand-ported replica, kept in sync with the live BRUVV script. Treat results as informative, not proven, until cross-checked against real signals.
         </div>

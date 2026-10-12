@@ -181,7 +181,7 @@ export default function AnalysedSignalsPage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[var(--text-1)]">Analysed Signals <span className="text-[var(--border-strong)] font-medium">— every signal, LLM-checked</span></h1>
+        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-[var(--text-1)]">Analysed Signals <span className="text-[var(--text-3)] font-normal">— every signal, LLM-checked</span></h1>
         <div className="font-mono text-xs text-[var(--text-2)] mt-2">
           Every signal from the Signals page is automatically sent to one model for a second opinion — valid confirms the strategy&apos;s own rules were genuinely met, invalid comes with the model&apos;s preferred entry/SL/TP.
         </div>

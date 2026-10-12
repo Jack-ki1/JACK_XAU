@@ -1,126 +1,145 @@
-/* JACK TRADE design tokens (Phase 4). Three presets + colour-blind mode.
+/* JACK TRADE design tokens — premium 2026 refresh (Phase 9).
  * Rules (§3.4): green/red reserved for direction & P&L; one brand accent
  * (gold, sparing); interactive blue; numbers tabular (see .tnum).
  * Every text/background pair below passes WCAG AA 4.5:1 — enforced by
- * scripts/contrast-check.ts in CI. --text-3 is decorative ONLY. */
+ * scripts/contrast-check.mjs in CI. --text-3 is decorative ONLY. */
 
-:root[data-theme='midnight'] {
-  --bg-app: #0b0f14;
-  --bg-panel: #11161d;
-  --bg-raised: #171e27;
-  --bg-hover: #1c2530;
-  --border: #232b36;
-  --border-strong: #2f3947;
-
-  --text-1: #e6eaf0;
-  --text-2: #9aa6b5;
-  --text-3: #6b7889;
-
-  --accent-gold: #e0b04a;
-  --gold-fg: #11161d;
-  --accent-blue: #4d7cff;
-  --accent-blue-solid: #2563eb;
-  --on-accent: #ffffff;
-
-  --bull: #26a69a;
-  --bull-bg: rgba(38, 166, 154, 0.14);
-  --bear: #ef5350;
-  --bear-bg: rgba(239, 83, 80, 0.14);
-  --warn: #f5a623;
-  --info: #4da3ff;
-  --news-low: #7c8aa0;
-  --news-med: #f5a623;
-  --news-high: #ff6b3d;
-
-  --chart-bg: var(--bg-panel);
-  --chart-grid: rgba(255, 255, 255, 0.04);
-  --level-pd: #4da3ff;
-  --level-pw: #b58cff;
-  --session-asia: rgba(124, 138, 160, 0.08);
-  --session-london: rgba(77, 163, 255, 0.08);
-  --session-ny: rgba(224, 176, 74, 0.08);
+:root {
+  --radius: 10px;
+  --radius-lg: 14px;
 }
 
-:root[data-theme='graphite'] {
-  --bg-app: #101012;
-  --bg-panel: #17171a;
-  --bg-raised: #1f1f24;
-  --bg-hover: #26262d;
-  --border: #2a2a31;
-  --border-strong: #3a3a44;
+:root[data-theme='midnight'] {
+  --bg-app: #0a0e16;
+  --bg-panel: #121826;
+  --bg-raised: #1a2233;
+  --bg-hover: #222c41;
+  --border: #2a3550;
+  --border-strong: #3d4c70;
 
-  --text-1: #ececf1;
-  --text-2: #a7a7b3;
-  --text-3: #71717e;
+  --text-1: #f3f6fc;
+  --text-2: #a8b5cf;
+  --text-3: #7587a6;
 
-  --accent-gold: #d9a93f;
-  --gold-fg: #11161d;
-  --accent-blue: #5b8cff;
+  --accent-gold: #ffc94d;
+  --gold-fg: #10141f;
+  --accent-blue: #6aa5ff;
   --accent-blue-solid: #2563eb;
   --on-accent: #ffffff;
 
-  --bull: #2ebdac;
-  --bull-bg: rgba(46, 189, 172, 0.14);
-  --bear: #f0605d;
-  --bear-bg: rgba(240, 96, 93, 0.14);
-  --warn: #f0a832;
-  --info: #5aa9ff;
-  --news-low: #8b8b98;
-  --news-med: #f0a832;
-  --news-high: #ff7043;
+  --bull: #2dd4a7;
+  --bull-bg: rgba(45, 212, 167, 0.14);
+  --bear: #ff6b7a;
+  --bear-bg: rgba(255, 107, 122, 0.14);
+  --warn: #ffb020;
+  --info: #4fc3ff;
+  --news-low: #8496b3;
+  --news-med: #ffb020;
+  --news-high: #ff7a45;
 
   --chart-bg: var(--bg-panel);
   --chart-grid: rgba(255, 255, 255, 0.05);
-  --level-pd: #5aa9ff;
-  --level-pw: #c09aff;
-  --session-asia: rgba(139, 139, 152, 0.08);
-  --session-london: rgba(90, 169, 255, 0.08);
-  --session-ny: rgba(217, 169, 63, 0.08);
+  --level-pd: #4fc3ff;
+  --level-pw: #c79dff;
+  --session-asia: rgba(124, 138, 160, 0.09);
+  --session-london: rgba(106, 165, 255, 0.09);
+  --session-ny: rgba(255, 201, 77, 0.09);
+
+  --shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -26px rgba(0, 0, 0, 0.8);
+  --shadow-pop: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 24px 64px -28px rgba(0, 0, 0, 0.95);
+}
+
+:root[data-theme='graphite'] {
+  --bg-app: #121215;
+  --bg-panel: #1b1b20;
+  --bg-raised: #24242b;
+  --bg-hover: #2d2d36;
+  --border: #33333d;
+  --border-strong: #484854;
+
+  --text-1: #f2f2f6;
+  --text-2: #b2b2be;
+  --text-3: #82828f;
+
+  --accent-gold: #ffd166;
+  --gold-fg: #16161b;
+  --accent-blue: #7aa5ff;
+  --accent-blue-solid: #2563eb;
+  --on-accent: #ffffff;
+
+  --bull: #35d0b0;
+  --bull-bg: rgba(53, 208, 176, 0.14);
+  --bear: #ff7a7a;
+  --bear-bg: rgba(255, 122, 122, 0.14);
+  --warn: #ffb84d;
+  --info: #62b8ff;
+  --news-low: #9494a3;
+  --news-med: #ffb84d;
+  --news-high: #ff8a55;
+
+  --chart-bg: var(--bg-panel);
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --level-pd: #62b8ff;
+  --level-pw: #d0a6ff;
+  --session-asia: rgba(148, 148, 163, 0.09);
+  --session-london: rgba(98, 184, 255, 0.09);
+  --session-ny: rgba(255, 209, 102, 0.09);
+
+  --shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.35), 0 16px 40px -26px rgba(0, 0, 0, 0.75);
+  --shadow-pop: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 24px 64px -28px rgba(0, 0, 0, 0.9);
 }
 
 :root[data-theme='daylight'] {
-  --bg-app: #f4f5f7;
+  --bg-app: #f6f8fc;
   --bg-panel: #ffffff;
-  --bg-raised: #eef0f3;
-  --bg-hover: #e4e7ec;
-  --border: #d9dde3;
-  --border-strong: #b9c0cb;
+  --bg-raised: #eef1f8;
+  --bg-hover: #e6ebf5;
+  --border: #dce2ee;
+  --border-strong: #b8c2d4;
 
-  --text-1: #1a2230;
-  --text-2: #4d5a6e;
-  --text-3: #7a8699;
+  --text-1: #101828;
+  --text-2: #475467;
+  --text-3: #6a7890;
 
   --accent-gold: #8f6b12;
   --gold-fg: #ffffff;
-  --accent-blue: #1f4fd1;
-  --accent-blue-solid: #1f4fd1;
+  --accent-blue: #1d4ed8;
+  --accent-blue-solid: #1d4ed8;
   --on-accent: #ffffff;
 
-  --bull: #0d7d72;
-  --bull-bg: rgba(13, 125, 114, 0.1);
-  --bear: #c73331;
-  --bear-bg: rgba(199, 51, 49, 0.1);
-  --warn: #925e00;
+  --bull: #0d8477;
+  --bull-bg: rgba(13, 132, 119, 0.1);
+  --bear: #d1362d;
+  --bear-bg: rgba(209, 54, 45, 0.1);
+  --warn: #935e00;
   --info: #0b5bd3;
-  --news-low: #5b6b82;
-  --news-med: #925e00;
-  --news-high: #c7431f;
+  --news-low: #55657d;
+  --news-med: #935e00;
+  --news-high: #cc4a1f;
 
   --chart-bg: var(--bg-panel);
   --chart-grid: rgba(0, 0, 0, 0.05);
   --level-pd: #0b5bd3;
   --level-pw: #6d3fd1;
-  --session-asia: rgba(91, 107, 130, 0.08);
+  --session-asia: rgba(85, 101, 125, 0.08);
   --session-london: rgba(11, 91, 211, 0.07);
-  --session-ny: rgba(154, 116, 20, 0.08);
+  --session-ny: rgba(143, 107, 18, 0.08);
+
+  --shadow-panel: 0 1px 2px rgba(16, 24, 40, 0.05),
+    0 14px 36px -24px rgba(16, 24, 40, 0.2);
+  --shadow-pop: 0 24px 64px -24px rgba(16, 24, 40, 0.3);
 }
 
 /* Colour-blind-safe: direction/P&L become blue/orange (never red/green). */
 :root[data-cb='on'] {
-  --bull: #0072b2;
-  --bull-bg: rgba(0, 114, 178, 0.14);
-  --bear: #e69f00;
-  --bear-bg: rgba(230, 159, 0, 0.16);
+  --bull: #0a84ff;
+  --bull-bg: rgba(10, 132, 255, 0.16);
+  --bear: #ff9f0a;
+  --bear-bg: rgba(255, 159, 10, 0.16);
 }
 :root[data-cb='on'][data-theme='daylight'] {
   --bull: #005a8f;
@@ -147,12 +166,13 @@
 .surface {
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
 }
 .surface-raised {
   background: var(--bg-raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .eyebrow {
   font-family: var(--font-jbmono), ui-monospace, monospace;

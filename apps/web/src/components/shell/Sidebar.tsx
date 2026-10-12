@@ -78,12 +78,22 @@ export default function Sidebar() {
         }`}
       >
         <div className="flex items-center gap-2.5 px-3 h-14 border-b border-[var(--border)] shrink-0">
-          <div className="w-8 h-8 rounded-full overflow-hidden border border-[var(--accent-blue)]/40 shrink-0">
+          <div className="w-8 h-8 rounded-full overflow-hidden border border-[var(--accent-gold)]/45 shadow-[0_0_12px_-4px_var(--accent-gold)] shrink-0">
             <Image src="/logo.png" alt="JACK TRADE" width={32} height={32} className="object-cover" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="text-[var(--text-1)] font-bold text-sm tracking-wide leading-none">JACK TRADE</div>
+              <div
+                className="font-bold text-sm tracking-[0.14em] leading-none"
+                style={{
+                  background: 'linear-gradient(90deg, var(--text-1) 30%, var(--accent-gold))',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                JACK TRADE
+              </div>
               <div className="eyebrow mt-1">TRADING DESK</div>
             </div>
           )}
@@ -103,9 +113,9 @@ export default function Sidebar() {
                 <Link
                   href={href}
                   title={collapsed ? label : undefined}
-                  className={`flex items-center gap-2.5 px-2.5 h-9 rounded text-[12px] whitespace-nowrap transition-colors ${
+                  className={`flex items-center gap-2.5 px-2.5 h-9 rounded-md text-[12px] whitespace-nowrap transition-all ${
                     active
-                      ? 'bg-[var(--bg-hover)] text-[var(--text-1)] border-l-2 border-[var(--accent-blue)]'
+                      ? 'bg-[var(--bg-hover)] text-[var(--text-1)] border-l-2 border-[var(--accent-blue)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
                       : 'text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-hover)] border-l-2 border-transparent'
                   }`}
                 >

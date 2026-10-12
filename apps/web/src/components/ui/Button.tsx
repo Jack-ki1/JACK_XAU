@@ -9,7 +9,7 @@ type Size = 'sm' | 'md'
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'bg-[var(--accent-blue-solid)] text-[var(--on-accent)] hover:opacity-90 border border-transparent',
+    'bg-[var(--accent-blue-solid)] text-[var(--on-accent)] hover:opacity-90 hover:-translate-y-px active:translate-y-0 border border-transparent shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
   secondary:
     'bg-[var(--bg-raised)] text-[var(--text-1)] border border-[var(--border-strong)] hover:bg-[var(--bg-hover)]',
   ghost:
@@ -17,7 +17,7 @@ const VARIANTS: Record<Variant, string> = {
   danger:
     'bg-[var(--bear-bg)] text-[var(--bear)] border border-[var(--bear)] hover:bg-[var(--bear)] hover:text-white',
   gold:
-    'bg-[var(--accent-gold)] text-[var(--gold-fg)] hover:opacity-90 border border-transparent font-semibold',
+    'bg-[var(--accent-gold)] text-[var(--gold-fg)] hover:opacity-90 hover:-translate-y-px active:translate-y-0 border border-transparent font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
 }
 
 const SIZES: Record<Size, string> = {
@@ -34,7 +34,7 @@ export default function Button({ variant = 'secondary', size = 'md', className =
   return (
     <button
       {...rest}
-      className={`inline-flex items-center justify-center gap-1.5 rounded font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-all disabled:opacity-50 disabled:pointer-events-none ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
     />
   )
 }

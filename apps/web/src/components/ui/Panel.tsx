@@ -107,7 +107,7 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void
 }) {
   return (
-    <div className="inline-flex rounded border border-[var(--border)] overflow-hidden">
+    <div className="inline-flex rounded-md border border-[var(--border)] overflow-hidden">
       {options.map((o) => (
         <button
           key={o.value}
