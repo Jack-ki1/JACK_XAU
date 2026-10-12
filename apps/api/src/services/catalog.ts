@@ -2,12 +2,17 @@
 // closed-signal patterns, performance aggregates. Thin orchestration over repos.
 import type { SignalRow } from '@jack-trade/shared';
 import { getDb } from '../repositories/client.js';
-import { calendarWindow, getSetting, listSignals, setSetting } from '../repositories/repos.js';
+import { calendarWindow, getSetting, listSignals, listVerdicts, setSetting } from '../repositories/repos.js';
 import { publish } from '../plugins/sse.js';
 
 export async function getSignals(status?: string, limit = 50) {
-  const rows = await listSignals(status, Math.min(limit, 200));
+  const rows = await listSignals(status, Math.min(limit, 1000));
   return { signals: rows, count: rows.length };
+}
+
+export async function getVerdicts(table: 'analysed_signals' | 'news_signals', status?: string, limit = 100) {
+  const rows = await listVerdicts(table, status, Math.min(limit, 500));
+  return { verdicts: rows, count: rows.length };
 }
 
 export async function ingestSignal(body: unknown) {

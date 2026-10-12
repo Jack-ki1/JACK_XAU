@@ -1,6 +1,9 @@
 // app/(app)/backtest/page.tsx
 'use client'
-import { useState } from 'react'
+/* eslint-disable react-hooks/set-state-in-effect -- async run results land from poll */
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/apiClient'
 import { DEFAULT_PARAMS, type BacktestParams, type SimulatedSignal } from '@jack-trade/engine'
 
 interface BacktestMeta {
@@ -12,6 +15,19 @@ interface BacktestMeta {
 }
 
 interface RateStat { total: number; wins: number; winRate: number | null }
+
+// async run object returned by the API (POST 202 → poll GET)
+interface BtRun {
+  id: string
+  status: 'running' | 'done' | 'error'
+  progress: string
+  createdAt: string
+  startDate: string
+  endDate: string
+  results?: ConfigResult[]
+  meta?: BacktestMeta
+  error?: string
+}
 
 // STAGE SYNC: ConfigOverrides rewritten to match the real, current
 // BacktestParams shape -- targetRR, useManualEntryFilter,
@@ -126,6 +142,7 @@ export default function BacktestPage() {
   const [endDate, setEndDate] = useState(todayISO())
   const [extraConfigs, setExtraConfigs] = useState<ConfigDraft[]>([])
   const [running, setRunning] = useState(false)
+  const [runId, setRunId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<ConfigResult[] | null>(null)
   const [meta, setMeta] = useState<BacktestMeta | null>(null)
@@ -178,29 +195,55 @@ export default function BacktestPage() {
     setRunning(true)
     setError(null)
     setResults(null)
+    setMeta(null)
+    setRunId(null)
     try {
       const configs = [
         { name: 'Baseline (current live settings)', params: {} },
         ...extraConfigs.map(c => ({ name: c.name, params: c.overrides })),
       ]
-      const res = await fetch('/api/backtest', {
+      const started = await api<BtRun>('/backtests', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startDate, endDate, configs }),
       })
-      const data = await res.json()
-      if (data.error) {
-        setError(data.error)
-      } else {
-        setResults(data.results)
-        setMeta(data.meta)
-      }
+      setRunId(started.id)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Request failed.')
-    } finally {
       setRunning(false)
     }
   }
+
+  // Async-native: poll the active run until it finishes.
+  const qc = useQueryClient()
+  const { data: activeRun } = useQuery({
+    queryKey: ['backtest-run', runId],
+    enabled: !!runId,
+    queryFn: () => api<BtRun>(`/backtests/${runId}`),
+    staleTime: 0,
+    refetchInterval: q => ((q.state.data as BtRun | undefined)?.status === 'running' ? 1000 : false),
+  })
+
+  useEffect(() => {
+    if (!activeRun) return
+    if (activeRun.status === 'done') {
+      setResults(activeRun.results ?? null)
+      setMeta(activeRun.meta ?? null)
+      setRunning(false)
+      void qc.invalidateQueries({ queryKey: ['backtest-runs'] })
+    } else if (activeRun.status === 'error') {
+      setError(activeRun.error ?? 'Backtest run failed.')
+      setRunning(false)
+    }
+  }, [activeRun, qc])
+
+  // Run history (last 20, in-memory on the API).
+  const { data: runsData } = useQuery({
+    queryKey: ['backtest-runs'],
+    queryFn: () => api<{ runs: BtRun[] }>('/backtests'),
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+  })
+  const runs = runsData?.runs ?? []
 
   function toggleSignal(idx: number) {
     setExpandedSignals(prev => {
@@ -317,11 +360,38 @@ export default function BacktestPage() {
 
         <button onClick={run} disabled={running}
           className="mt-2 bg-[var(--accent-blue)] text-[var(--bg-app)] font-mono text-sm font-bold px-5 py-2.5 rounded-lg disabled:opacity-50">
-          {running ? 'Running…' : 'Run Backtest'}
+          {running ? (activeRun?.progress || 'Running…') : 'Run Backtest'}
         </button>
 
         {error && <div className="mt-4 font-mono text-xs text-[var(--bear)]">{error}</div>}
       </div>
+
+      {runs.length > 0 && (
+        <div className="surface p-4 mb-5">
+          <div className="eyebrow mb-3">Run history (last {runs.length})</div>
+          <div className="space-y-1">
+            {runs.map(r => (
+              <div key={r.id} className="flex items-center gap-3 font-mono text-[11px] py-1.5 border-b border-[var(--border)] last:border-0">
+                <span className="text-[var(--text-3)] tnum">{r.createdAt.slice(0, 16).replace('T', ' ')}</span>
+                <span className="text-[var(--text-2)] tnum">{r.startDate} → {r.endDate}</span>
+                <span className={`px-1.5 rounded ${
+                  r.status === 'done' ? 'text-[var(--bull)] bg-[var(--bull-bg)]'
+                  : r.status === 'error' ? 'text-[var(--bear)] bg-[var(--bear-bg)]'
+                  : 'text-[var(--warn)] bg-[var(--warn)]/15'
+                }`}>{r.status.toUpperCase()}</span>
+                {r.status === 'error' && <span className="text-[var(--bear)] truncate">{r.error}</span>}
+                {r.status === 'running' && <span className="text-[var(--text-3)]">{r.progress}</span>}
+                {r.status === 'done' && (
+                  <button
+                    onClick={() => { setError(null); setRunId(r.id) }}
+                    className="ml-auto text-[var(--accent-blue)] hover:text-[var(--text-1)] uppercase tracking-wide text-[10px]"
+                  >view results</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {meta && (
         <div className="font-mono text-[10px] text-[var(--text-2)] mb-5">

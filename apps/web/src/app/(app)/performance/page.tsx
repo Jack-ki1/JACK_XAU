@@ -1,7 +1,7 @@
 // app/(app)/performance/page.tsx
 'use client'
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { useQuery } from '@tanstack/react-query'
+import { api, type VerdictRow } from '@/lib/apiClient'
 
 const POINT_SIZE = 0.01
 
@@ -74,52 +74,27 @@ interface LlmResolvedSignal {
   outcome: 'successful' | 'unsuccessful'
 }
 
-// STAGE: real Supabase-backed hook, replacing the mock arrays. Reads
-// closed rows from either analysed_signals or news_signals (same
-// shape, different table) and maps to the same display format. Since
-// llm_sl always mirrors Pine's own SL (see analyse-signals-route.ts's
-// design note), success/failure here reflects the same real price
-// data as the original signal for 'valid' rows, and the LLM's own
-// distinct TP outcome for 'invalid' rows -- never self-reported.
-function useLlmResolvedSignals(table: 'analysed_signals' | 'news_signals') {
-  const [data, setData] = useState<LlmResolvedSignal[]>([])
+// Closed LLM verdict rows via the API (analysed_signals / news_signals).
+// Success is always real price resolution — never self-reported by the LLM.
+interface LlmResolvedSignal {
+  signal_id: string
+  model: string
+  outcome: 'successful' | 'unsuccessful'
+}
 
-  const load = useCallback(async () => {
-    const { data: rows } = await supabase
-      .from(table)
-      .select('signal_id, llm_model, final_outcome')
-      .eq('status', 'closed')
-      .not('final_outcome', 'is', null)
-      .order('resolved_at', { ascending: false })
-      .limit(100)
-
-    type LlmResolvedRow = {
-      signal_id: string
-      llm_model: string
-      final_outcome: 'tp_hit' | 'stopped_out'
-    }
-
-    setData(
-      (rows ?? [])
-        .filter((r: LlmResolvedRow) => r.final_outcome === 'tp_hit' || r.final_outcome === 'stopped_out')
-        .map((r: LlmResolvedRow) => ({
-          signal_id: r.signal_id,
-          model: r.llm_model,
-          outcome: r.final_outcome === 'tp_hit' ? 'successful' as const : 'unsuccessful' as const,
-        }))
-    )
-  }, [table])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load()
-    const channel = supabase.channel(`${table}-perf-live`)
-      .on('postgres_changes', { event: '*', schema: 'public', table }, load)
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [table, load])
-
-  return data
+function useLlmResolvedSignals(table: 'analysed_signals' | 'news_signals'): LlmResolvedSignal[] {
+  const { data } = useQuery({
+    queryKey: ['verdicts', table],
+    queryFn: () => api<{ verdicts: VerdictRow[] }>(`/verdicts/${table}?status=closed&limit=100`),
+    staleTime: 30_000,
+  })
+  return (data?.verdicts ?? [])
+    .filter((r) => r.final_outcome === 'tp_hit' || r.final_outcome === 'stopped_out')
+    .map((r) => ({
+      signal_id: r.signal_id,
+      model: r.llm_model ?? '—',
+      outcome: r.final_outcome === 'tp_hit' ? ('successful' as const) : ('unsuccessful' as const),
+    }))
 }
 
 function LlmSuccessSection({
@@ -187,23 +162,17 @@ type PerformanceSignal = {
 }
 
 export default function PerformancePage() {
-  const [signals, setSignals] = useState<PerformanceSignal[]>([])
   const analysedSignalsResolved = useLlmResolvedSignals('analysed_signals')
   const newsSignalsResolved = useLlmResolvedSignals('news_signals')
 
-  const load = useCallback(async () => {
-    const { data } = await supabase.from('signals').select('*').order('created_at', { ascending: true })
-    setSignals(data || [])
-  }, [])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load()
-    const channel = supabase.channel('performance-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'signals' }, load)
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [load])
+  const { data: signalsResp } = useQuery({
+    queryKey: ['signals', 'performance'],
+    queryFn: () => api<{ signals: PerformanceSignal[] }>('/signals?limit=1000'),
+    staleTime: 30_000,
+  })
+  const signals = (signalsResp?.signals ?? [])
+    .slice()
+    .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
 
   const closed = signals.filter(s => s.status === 'closed')
   const wins = closed.filter(s => s.final_outcome && s.final_outcome !== 'stopped_out').length

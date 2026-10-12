@@ -60,5 +60,5 @@ export interface NotificationItem {
   created_at: string
 }
 
-// signals come straight from @jack-trade/shared row types
-export type { SignalRow } from '@jack-trade/shared'
+// row types come straight from @jack-trade/shared
+export type { SignalRow, VerdictRow, NotificationRow } from '@jack-trade/shared'

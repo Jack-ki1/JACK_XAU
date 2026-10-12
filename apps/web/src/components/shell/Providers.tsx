@@ -44,7 +44,7 @@ function DeskEvents() {
               invalidate([['signals'], ['desk']])
               break
             case 'signal_analysed':
-              invalidate([['analysed'], ['desk']])
+              invalidate([['analysed'], ['verdicts'], ['desk']])
               break
             case 'news_window':
             case 'session_change':
