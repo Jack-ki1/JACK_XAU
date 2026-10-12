@@ -8,7 +8,13 @@ review, alerts, journal, backtesting. No order placement, no broker execution.
 
 ```bash
 npm ci
-npm run dev        # http://localhost:3000 → redirects to /overview
+npm run dev        # web → http://localhost:3000 → /overview
+npm run dev:api    # api → http://127.0.0.1:3101 (jobs run in-process)
+```
+
+Web without the API still boots: `/api/*` forwarders return documented
+degraded payloads (news inactive, demo ribbon, fail-open defaults).
+For the full desk, run both (docker-compose lands in Phase 8).
 ```
 
 With no env vars the app boots in **demo mode** (amber ribbon, fixture data).

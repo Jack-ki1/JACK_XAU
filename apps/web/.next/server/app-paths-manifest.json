@@ -22,6 +22,7 @@
   "/api/news-window-status/route": "app/api/news-window-status/route.js",
   "/api/process-news-signals/route": "app/api/process-news-signals/route.js",
   "/api/settings/toggle-analysed-signals/route": "app/api/settings/toggle-analysed-signals/route.js",
+  "/api/v1/[...path]/route": "app/api/v1/[...path]/route.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
   "/page": "app/page.js"
 }
