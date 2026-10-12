@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #05070A;
+  --panel: #0B0F14;
+  --panel-2: #0F141A;
+  --line: #1B232C;
+  --teal: #2DD4BF;
+  --teal-dim: #14625A;
+  --pink: #FF2E63;
+  --text: #EDEFF2;
+  --muted: #7C8896;
+  --green: #34D399;
+  --red: #F87171;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
