@@ -1,12 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import { analyseOneSignal } from '../../services/analysis.js';
 import { getSignals, ingestSignal } from '../../services/catalog.js';
-import { getSignalBySignalId } from '../../repositories/repos.js';
+import { getSignalBySignalId, listSignalsByIds } from '../../repositories/repos.js';
 import { apiError } from '../../lib/errors.js';
 
 export async function signalRoutes(app: FastifyInstance): Promise<void> {
   app.get('/v1/signals', async (req) => {
-    const q = req.query as { status?: string; limit?: string };
+    const q = req.query as { status?: string; limit?: string; ids?: string };
+    if (q.ids) {
+      const ids = q.ids.split(',').map((s) => s.trim()).filter(Boolean);
+      const rows = await listSignalsByIds(ids);
+      return { signals: rows, count: rows.length };
+    }
     return getSignals(q.status, q.limit ? Number(q.limit) : 50);
   });
 

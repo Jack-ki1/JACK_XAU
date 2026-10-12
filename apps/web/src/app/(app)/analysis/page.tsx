@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/apiClient'
 
 const STORAGE_KEYS = {
   patterns: 'jacktrade:closed-patterns',
@@ -60,40 +61,19 @@ export default function AnalysisPage() {
   const now = new Date()
 
   const [resolutionFilter, setResolutionFilter] = useState<'all' | 'tp_hit' | 'stopped_out'>('all')
-  const [resolved, setResolved] = useState<ResolvedSignal[]>([])
-  const [loadingResolved, setLoadingResolved] = useState(true)
 
   const [patternsLoading, setPatternsLoading] = useState(false)
   const [patternsError, setPatternsError] = useState<string>(() => readStored<string>(STORAGE_KEYS.patternsError) || '')
   const [patternsResult, setPatternsResult] = useState<PatternAnalysisResult | null>(() => readStored<PatternAnalysisResult>(STORAGE_KEYS.patterns))
 
-  const loadResolved = useCallback(async () => {
-    const { data } = await supabase
-      .from('signals')
-      .select('signal_id, final_outcome, resolved_at')
-      .eq('status', 'closed')
-      .not('final_outcome', 'is', null)
-      .order('resolved_at', { ascending: false })
-      .limit(100)
+  const { data: resolvedResp, isPending: resolvedPending } = useQuery({
+    queryKey: ['signals', 'resolved'],
+    queryFn: () => api<{ resolved: ResolvedSignal[] }>('/signals/resolved?limit=100'),
+    staleTime: 30_000,
+  })
 
-    type ResolvedRow = { signal_id: string; final_outcome: 'tp_hit' | 'stopped_out'; resolved_at: string }
-
-    setResolved(
-      (data ?? [])
-        .filter((s: ResolvedRow) => s.final_outcome === 'tp_hit' || s.final_outcome === 'stopped_out')
-        .map((s: ResolvedRow) => ({ signal_id: s.signal_id, outcome: s.final_outcome, resolved_at: s.resolved_at }))
-    )
-    setLoadingResolved(false)
-  }, [])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadResolved()
-    const channel = supabase.channel('analysis-resolved-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'signals' }, loadResolved)
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [loadResolved])
+  const resolved = resolvedResp?.resolved ?? []
+  const loadingResolved = resolvedPending
 
   async function runPatternSummary() {
     setPatternsLoading(true)

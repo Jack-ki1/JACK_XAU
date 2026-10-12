@@ -12,6 +12,13 @@ export async function listSignals(status?: string, limit = 200): Promise<SignalR
   return (data ?? []) as SignalRow[];
 }
 
+export async function listSignalsByIds(signalIds: string[]): Promise<SignalRow[]> {
+  const db = getDb();
+  if (!db || signalIds.length === 0) return [];
+  const { data } = await db.from('signals').select('*').in('signal_id', signalIds.slice(0, 100));
+  return (data ?? []) as SignalRow[];
+}
+
 export async function getSignalBySignalId(signalId: string): Promise<SignalRow | null> {
   const db = getDb();
   if (!db) return null;

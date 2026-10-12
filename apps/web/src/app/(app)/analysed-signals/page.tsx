@@ -1,7 +1,7 @@
 'use client'
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { api, type VerdictRow, type SignalRow } from '@/lib/apiClient'
 
 type Verdict = 'valid' | 'invalid'
 
@@ -65,18 +65,11 @@ function formatKenyaTime(iso: string) {
   } catch { return '—' }
 }
 
-function todayUTC() {
-  return new Date().toISOString().slice(0, 10)
-}
-
 export default function AnalysedSignalsPage() {
   const [enabled, setEnabled] = useState(true)
   const [loaded, setLoaded] = useState(false)
   const [toggling, setToggling] = useState(false)
-  const [signals, setSignals] = useState<AnalysedSignal[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [resolutionFilter, setResolutionFilter] = useState<'all' | 'successful' | 'unsuccessful' | 'open'>('all')
-  const [quotaUsed, setQuotaUsed] = useState(0)
 
   // Real server-side toggle -- was localStorage-only before, which
   // only affected what one browser displayed rather than what the
@@ -115,99 +108,71 @@ export default function AnalysedSignalsPage() {
     setToggling(false)
   }
 
-  const loadQuota = useCallback(async () => {
-    // Table name kept as 'openrouter_usage' deliberately across the
-    // vendor switch (OpenRouter -> briefly Gemini -> Groq) to avoid a
-    // schema migration cascade -- it's just a stable label now, not
-    // literally tied to OpenRouter anymore.
-    const { data } = await supabase
-      .from('openrouter_usage')
-      .select('count')
-      .eq('usage_date', todayUTC())
-      .eq('key_name', 'analysed_signals')
-      .maybeSingle()
-    setQuotaUsed(data?.count ?? 0)
-  }, [])
+  // Data via the API: verdict rows → original signals (by ids) → merged.
+  const { data: vResp, error: vErr } = useQuery({
+    queryKey: ['verdicts', 'analysed_signals'],
+    queryFn: () => api<{ verdicts: VerdictRow[] }>('/verdicts/analysed_signals?limit=50'),
+    staleTime: 15_000,
+  })
+  const verdicts = useMemo(() => vResp?.verdicts ?? [], [vResp])
+  const idsKey = verdicts.map((v) => v.signal_id).join(',')
 
-  const loadSignals = useCallback(async () => {
-    const { data: analysed, error } = await supabase
-      .from('analysed_signals')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
+  const { data: origResp } = useQuery({
+    queryKey: ['signals', 'byids', 'analysed', idsKey],
+    queryFn: () => api<{ signals: SignalRow[] }>(`/signals?ids=${encodeURIComponent(idsKey)}`),
+    enabled: idsKey.length > 0,
+    staleTime: 30_000,
+  })
 
-    // STAGE FIX: real bug found -- this used to destructure only
-    // `data`, discarding `error` entirely. That meant a genuine query
-    // failure (e.g. a Row Level Security policy silently denying the
-    // anon/authenticated client, even though the SAME table reads
-    // fine via a service-role backend query) looked EXACTLY like "the
-    // table is just empty" -- indistinguishable without opening
-    // browser dev tools, which isn't always available. Now surfaces
-    // the real error directly on the page.
-    if (error) {
-      setLoadError(`Could not load analysed signals: ${error.message}. If this mentions permission or policy, the analysed_signals table likely needs a Row Level Security SELECT policy for the anon/authenticated role -- it currently works from backend service-role queries but not from this page.`)
-      setSignals([])
-      return
-    }
-    setLoadError(null)
+  const { data: usage } = useQuery({
+    queryKey: ['usage', 'analysed'],
+    queryFn: () => api<{ used: number }>('/usage/analysed'),
+    staleTime: 60_000,
+  })
+  const quotaUsed = usage?.used ?? 0
 
-    if (!analysed || analysed.length === 0) {
-      setSignals([])
-      return
-    }
+  const loadError = vErr
+    ? `Could not load analysed signals: ${vErr.message}.`
+    : null
 
-    const signalIds = analysed.map((a: AnalysedSignalRow) => a.signal_id)
-    const { data: originals } = await supabase
-      .from('signals')
-      .select('signal_id, symbol, direction, signal_type, path, entry, exits, risk, created_at')
-      .in('signal_id', signalIds)
-
-    const originalsById = new Map<string, OriginalSignalRow>((originals ?? []).map((o: OriginalSignalRow) => [o.signal_id, o]))
-
-    const merged: AnalysedSignal[] = analysed.map((a: AnalysedSignalRow) => {
+  const signals = useMemo<AnalysedSignal[]>(() => {
+    const originalsById = new Map<string, OriginalSignalRow>(
+      (origResp?.signals ?? []).map((o) => [o.signal_id, o as OriginalSignalRow]),
+    )
+    return verdicts.map((a) => {
       const orig = originalsById.get(a.signal_id)
+      const ar = a as AnalysedSignalRow
       const resolution: AnalysedSignal['resolution'] =
-        a.status !== 'closed' ? 'open' : a.final_outcome === 'tp_hit' ? 'successful' : 'unsuccessful'
-
+        ar.status !== 'closed' ? 'open' : ar.final_outcome === 'tp_hit' ? 'successful' : 'unsuccessful'
       return {
-        rowId: a.id,
-        signal_id: a.signal_id,
+        rowId: ar.id,
+        signal_id: ar.signal_id,
         symbol: orig?.symbol ?? 'XAUUSD',
-        direction: (a.direction ?? orig?.direction ?? 'buy') as 'buy' | 'sell',
+        direction: (ar.direction ?? orig?.direction ?? 'buy') as 'buy' | 'sell',
         signal_type: orig?.signal_type ?? 'sniper_confirmation',
         path: orig?.path ?? null,
         entry: orig?.entry ?? null,
         sl: orig?.exits?.sl ?? null,
         tp: orig?.exits?.tp ?? null,
         rr: orig?.risk?.tp_rr ?? orig?.exits?.rr_selected ?? null,
-        created_at: a.created_at ?? orig?.created_at ?? new Date().toISOString(),
-        llm_model: a.llm_model ?? 'unknown',
-        verdict: a.verdict,
-        llm_entry: a.llm_entry ?? null,
-        llm_sl: a.llm_sl ?? null,
-        llm_tp: a.llm_tp ?? null,
-        llm_rr: a.llm_rr ?? null,
-        reasoning: a.reasoning ?? '',
+        created_at: ar.created_at ?? orig?.created_at ?? new Date().toISOString(),
+        llm_model: ar.llm_model ?? 'unknown',
+        verdict: ar.verdict,
+        llm_entry: ar.llm_entry ?? null,
+        llm_sl: ar.llm_sl ?? null,
+        llm_tp: ar.llm_tp ?? null,
+        llm_rr: ar.llm_rr ?? null,
+        reasoning: ar.reasoning ?? '',
         resolution,
       }
     })
+  }, [verdicts, origResp])
 
-    setSignals(merged)
-  }, [])
-
+  // initial toggle-state load (updates after that come from user clicks)
   useEffect(() => {
-    loadToggleState()
-    loadQuota()
-    loadSignals()
-
-    const channel = supabase.channel('analysed-signals-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'analysed_signals' }, () => {
-        loadSignals()
-        loadQuota()
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [loadToggleState, loadQuota, loadSignals])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async toggle-state hydration
+    void loadToggleState()
+  }, [loadToggleState])
 
   const quotaRemaining = OPENROUTER_DAILY_LIMIT - quotaUsed
   const quotaExhausted = quotaRemaining <= 0

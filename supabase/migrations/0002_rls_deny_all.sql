@@ -1,10 +1,13 @@
--- Phase 3: RLS deny-all for anon. APPLY GATE: do NOT apply until Phase 5
--- moves the last direct browser reads (pages still use the anon client for
--- signals/notifications/calendar in Phase 3; deny-all would blank them).
--- From Phase 5 on, only the API service key touches these tables.
+-- Phase 3/7: RLS deny-all for anon.
+-- STATUS: apply-ready as of Phase 7 (no web page reads Supabase directly
+-- anymore — every browser read goes through the API service key via the
+-- same-origin proxy). Applying this closes the last Critical finding of
+-- docs/AUDIT.md (anon + service key from one project).
 --
--- After applying, verify: anon SELECT on every table returns 0 rows, while
--- the service key still reads/writes.
+-- Verify after applying:
+--   1) anon SELECT on every table returns 0 rows / permission denied
+--   2) the desk still works end-to-end (web → proxy → API → service key)
+--   3) the external producer still ingests via POST /v1/signals/ingest
 
 alter table signals enable row level security;
 alter table analysed_signals enable row level security;
@@ -16,5 +19,5 @@ alter table calendar_fetch_attempts enable row level security;
 alter table av_usage enable row level security;
 alter table openrouter_usage enable row level security;
 
--- Intentionally NO permissive policies: anon gets nothing.
+-- Intentionally NO permissive policies: anon/authenticated get nothing.
 -- (Service-role bypasses RLS by design; no policy needed for the API.)

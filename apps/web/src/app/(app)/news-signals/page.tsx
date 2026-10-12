@@ -1,8 +1,9 @@
 'use client'
 /* eslint-disable react-hooks/set-state-in-effect -- initial data load + realtime subscription, same pattern as analysed-signals */
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import type { CalendarEventRow, SignalRow, VerdictRow } from '@jack-trade/shared'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { api, type VerdictRow, type SignalRow } from '@/lib/apiClient'
+import type { CalendarEventRow } from '@jack-trade/shared'
 
 interface NewsEvent {
   time: string
@@ -40,8 +41,6 @@ function formatKenyaTime(iso: string) {
 
 export default function NewsSignalsPage() {
   const [activeEvent, setActiveEvent] = useState<{ label: string; time: string } | null>(null)
-  const [todayEvents, setTodayEvents] = useState<NewsEvent[]>([])
-  const [signals, setSignals] = useState<NewsSignal[]>([])
 
   const checkNewsWindow = useCallback(async () => {
     try {
@@ -53,52 +52,44 @@ export default function NewsSignalsPage() {
     }
   }, [])
 
-  const loadTodayEvents = useCallback(async () => {
-    const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0)
-    const endOfDay = new Date(); endOfDay.setUTCHours(23, 59, 59, 999)
-    const { data } = await supabase
-      .from('calendar_events')
-      .select('event_time, currency, event_name, impact')
-      .gte('event_time', startOfDay.toISOString())
-      .lte('event_time', endOfDay.toISOString())
-      .order('event_time', { ascending: true })
-
-    setTodayEvents(
-      ((data ?? []) as CalendarEventRow[]).map((e) => ({
+  // Today's calendar via the API.
+  const { data: calResp } = useQuery({
+    queryKey: ['calendar'],
+    queryFn: () => api<{ events: CalendarEventRow[] }>('/calendar'),
+    staleTime: 5 * 60_000,
+  })
+  const todayEvents = useMemo<NewsEvent[]>(
+    () =>
+      (calResp?.events ?? []).map((e) => ({
         time: new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(new Date(e.event_time)),
         currency: e.currency ?? '',
         event: e.event_name ?? 'Economic event',
         impact: e.impact ?? 'unknown',
-      }))
-    )
-  }, [])
+      })),
+    [calResp],
+  )
 
-  const loadSignals = useCallback(async () => {
-    const { data: news } = await supabase
-      .from('news_signals')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
+  // News verdict rows via the API, merged with their original signals.
+  const { data: vResp } = useQuery({
+    queryKey: ['verdicts', 'news_signals'],
+    queryFn: () => api<{ verdicts: VerdictRow[] }>('/verdicts/news_signals?limit=50'),
+    staleTime: 15_000,
+  })
+  const newsRows = useMemo(() => vResp?.verdicts ?? [], [vResp])
+  const idsKey = newsRows.map((n) => n.signal_id).join(',')
+  const { data: origResp } = useQuery({
+    queryKey: ['signals', 'byids', 'news', idsKey],
+    queryFn: () => api<{ signals: SignalRow[] }>(`/signals?ids=${encodeURIComponent(idsKey)}`),
+    enabled: idsKey.length > 0,
+    staleTime: 30_000,
+  })
 
-    if (!news || news.length === 0) {
-      setSignals([])
-      return
-    }
-
-    const newsRows = ((news ?? []) as VerdictRow[])
-    const signalIds = newsRows.map((n) => n.signal_id)
-    const { data: originals } = await supabase
-      .from('signals')
-      .select('signal_id, symbol, entry, exits')
-      .in('signal_id', signalIds)
-
-    const originalsById = new Map(((originals ?? []) as SignalRow[]).map((o) => [o.signal_id, o]))
-
-    const merged: NewsSignal[] = newsRows.map((n) => {
+  const signals = useMemo<NewsSignal[]>(() => {
+    const originalsById = new Map<string, SignalRow>((origResp?.signals ?? []).map((o) => [o.signal_id, o]))
+    return newsRows.map((n) => {
       const orig = originalsById.get(n.signal_id)
       const resolution: NewsSignal['resolution'] =
         n.status !== 'closed' ? 'open' : n.final_outcome === 'tp_hit' ? 'successful' : 'unsuccessful'
-
       return {
         rowId: n.id,
         signal_id: n.signal_id,
@@ -107,7 +98,7 @@ export default function NewsSignalsPage() {
         entry: orig?.entry ?? n.llm_entry ?? null,
         sl: orig?.exits?.sl ?? n.llm_sl ?? null,
         tp: orig?.exits?.tp ?? null,
-        created_at: n.created_at ?? new Date().toISOString(),
+        created_at: n.created_at ?? orig?.created_at ?? new Date().toISOString(),
         triggering_event: n.triggering_event ?? '',
         news_summary: n.news_summary ?? '',
         verdict: n.verdict,
@@ -118,22 +109,14 @@ export default function NewsSignalsPage() {
         resolution,
       }
     })
+  }, [newsRows, origResp])
 
-    setSignals(merged)
-  }, [])
-
+  // news-window poll (existing interval behaviour, no realtime channel)
   useEffect(() => {
     checkNewsWindow()
-    loadTodayEvents()
-    loadSignals()
-
     const interval = setInterval(checkNewsWindow, 60000)
-    const channel = supabase.channel('news-signals-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'news_signals' }, loadSignals)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' }, loadTodayEvents)
-      .subscribe()
-    return () => { supabase.removeChannel(channel); clearInterval(interval) }
-  }, [checkNewsWindow, loadTodayEvents, loadSignals])
+    return () => clearInterval(interval)
+  }, [checkNewsWindow])
 
   const resolvedCount = signals.filter(s => s.resolution !== 'open').length
   const successCount = signals.filter(s => s.resolution === 'successful').length
