@@ -29,8 +29,8 @@ export const viewport: Viewport = {
   themeColor: '#0b1017',
 }
 
-// Sync no-flash bootstrap: mirror of lib/uiStore defaults, runs before paint.
-const themeBoot = `try{var s=JSON.parse(localStorage.getItem('jacktrade-ui')||'{}');var u=s.state||{};var d=document.documentElement;d.setAttribute('data-theme',u.theme||'midnight');d.setAttribute('data-density',u.density||'compact');d.setAttribute('data-cb',u.cbSafe?'on':'off')}catch(e){}`
+// Sync no-flash bootstrap: mirror of lib/uiStore defaults + v1→v2 theme migration.
+const themeBoot = `try{var s=JSON.parse(localStorage.getItem('jacktrade-ui')||'{}');var u=s.state||{};var d=document.documentElement;var t=u.theme==='sunrise'||u.theme==='aurora'||u.theme==='daylight'?u.theme:(u.theme==='midnight'||u.theme==='graphite'?'aurora':'daylight');var c=u.candle==='sky-orange'||u.candle==='mint-coral'||u.candle==='classic'?u.candle:'classic';d.setAttribute('data-theme',t);d.setAttribute('data-candle',c);d.setAttribute('data-density',u.density==='compact'?'compact':'comfortable');d.setAttribute('data-cb',u.cbSafe?'on':'off')}catch(e){d.setAttribute('data-theme','daylight');d.setAttribute('data-candle','classic')}`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

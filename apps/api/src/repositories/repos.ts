@@ -118,3 +118,202 @@ export async function calendarWindow(startIso: string, endIso: string): Promise<
 export function highImpact(events: CalendarEventRow[]): CalendarEventRow[] {
   return events.filter((e) => typeof e.impact === 'string' && e.impact.toLowerCase().includes('high'));
 }
+
+// ===== v2: candles, signal events, journal, read-state, rejections =====
+
+export interface CandleRow {
+  symbol: string
+  tf: string
+  ts_utc: string
+  open: number
+  high: number
+  low: number
+  close: number
+  tick_volume: number | null
+  source: string
+}
+
+export async function upsertCandles(rows: CandleRow[]): Promise<number> {
+  const db = getDb();
+  if (!db || rows.length === 0) return 0;
+  // Chunk to keep request sizes sane on big backfills.
+  let written = 0;
+  for (let i = 0; i < rows.length; i += 500) {
+    const chunk = rows.slice(i, i + 500);
+    const { error } = await db.from('candles').upsert(chunk, { onConflict: 'symbol,tf,ts_utc' });
+    if (!error) written += chunk.length;
+  }
+  return written;
+}
+
+export async function readCandles(tf: string, fromIso: string, toIso: string, limit = 5000): Promise<CandleRow[]> {
+  const db = getDb();
+  if (!db) return [];
+  const { data } = await db
+    .from('candles')
+    .select('*')
+    .eq('tf', tf)
+    .gte('ts_utc', fromIso)
+    .lte('ts_utc', toIso)
+    .order('ts_utc', { ascending: true })
+    .limit(limit);
+  return (data ?? []) as CandleRow[];
+}
+
+export async function latestCandleTs(tf: string): Promise<string | null> {
+  const db = getDb();
+  if (!db) return null;
+  const { data } = await db.from('candles').select('ts_utc').eq('tf', tf).order('ts_utc', { ascending: false }).limit(1).maybeSingle();
+  return (data as { ts_utc: string } | null)?.ts_utc ?? null;
+}
+
+export async function appendSignalEvent(signalId: string, type: string, payload: Record<string, unknown> = {}): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await db.from('signal_events').insert({ signal_id: signalId, type, payload });
+}
+
+export async function listSignalEvents(signalId: string, limit = 200): Promise<Array<{ id: number; signal_id: string; ts: string; type: string; payload: Record<string, unknown> }>> {
+  const db = getDb();
+  if (!db) return [];
+  const { data } = await db.from('signal_events').select('*').eq('signal_id', signalId).order('ts', { ascending: true }).limit(limit);
+  return (data ?? []) as Array<{ id: number; signal_id: string; ts: string; type: string; payload: Record<string, unknown> }>;
+}
+
+export async function logIngestRejection(reason: string, body: unknown): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await db.from('ingest_rejections').insert({ reason, body: body ?? null });
+}
+
+export async function getReadState(key: string): Promise<string | null> {
+  const db = getDb();
+  if (!db) return null;
+  const { data } = await db.from('desk_read_state').select('last_read_at').eq('key', key).maybeSingle();
+  return (data as { last_read_at: string } | null)?.last_read_at ?? null;
+}
+
+export async function setReadState(key: string, atIso: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await db.from('desk_read_state').upsert({ key, last_read_at: atIso });
+}
+
+export async function getJournal(signalId: string): Promise<Record<string, unknown> | null> {
+  const db = getDb();
+  if (!db) return null;
+  const { data } = await db.from('signal_journal').select('*').eq('signal_id', signalId).maybeSingle();
+  return (data as Record<string, unknown> | null) ?? null;
+}
+
+export async function upsertJournal(signalId: string, patch: Record<string, unknown>): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await db.from('signal_journal').upsert({ signal_id: signalId, ...patch, updated_at: new Date().toISOString() });
+}
+
+export async function listJournal(limit = 200): Promise<Array<Record<string, unknown>>> {
+  const db = getDb();
+  if (!db) return [];
+  const { data } = await db.from('signal_journal').select('*').order('updated_at', { ascending: false }).limit(limit);
+  return (data ?? []) as Array<Record<string, unknown>>;
+}
+
+export async function insertAiRun(row: Record<string, unknown>): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await db.from('ai_runs').insert(row);
+}
+
+export async function listAiRuns(signalId?: string, limit = 200): Promise<Array<Record<string, unknown>>> {
+  const db = getDb();
+  if (!db) return [];
+  let q = db.from('ai_runs').select('*').order('created_at', { ascending: false }).limit(limit);
+  if (signalId) q = q.eq('signal_id', signalId);
+  const { data } = await q;
+  return (data ?? []) as Array<Record<string, unknown>>;
+}
+
+// ===== v2 alert rules + events (C10) ====================================
+
+export interface AlertRuleRow {
+  id: number;
+  name: string;
+  kind: string;
+  config: Record<string, unknown>;
+  enabled: boolean;
+}
+
+export async function listAlertRules(): Promise<AlertRuleRow[]> {
+  const db = getDb();
+  if (!db) return [];
+  const { data } = await db.from('alert_rules').select('*').order('id', { ascending: true });
+  return (data ?? []) as AlertRuleRow[];
+}
+
+export async function insertAlertRule(row: { name: string; kind: string; config: Record<string, unknown> }): Promise<AlertRuleRow | null> {
+  const db = getDb();
+  if (!db) return null;
+  const { data, error } = await db.from('alert_rules').insert({ ...row, enabled: true }).select().maybeSingle();
+  if (error) throw error;
+  return (data as AlertRuleRow | null) ?? null;
+}
+
+export async function setAlertRuleEnabled(id: number, enabled: boolean): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const { data } = await db.from('alert_rules').update({ enabled }).eq('id', id).select('id');
+  return Boolean(data && data.length > 0);
+}
+
+export async function deleteAlertRule(id: number): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const { data } = await db.from('alert_rules').delete().eq('id', id).select('id');
+  return Boolean(data && data.length > 0);
+}
+
+export async function insertAlertEvent(row: { dedupe_key: string; message: string; rule_id?: number | null; detail?: Record<string, unknown> }): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const { error } = await db.from('alert_events').insert({
+    dedupe_key: row.dedupe_key,
+    message: row.message,
+    rule_id: row.rule_id ?? null,
+    detail: row.detail ?? null,
+    delivered_at: new Date().toISOString(),
+  });
+  // 23505 = unique_violation → deduped, treat as handled.
+  if (error && (error as { code?: string }).code !== '23505') throw error;
+  return true;
+}
+
+export async function listAlertEvents(limit = 100): Promise<Array<Record<string, unknown>>> {
+  const db = getDb();
+  if (!db) return [];
+  const { data } = await db.from('alert_events').select('*').order('created_at', { ascending: false }).limit(limit);
+  return (data ?? []) as Array<Record<string, unknown>>;
+}
+
+// ===== v2 MT5 bridge snapshots (C11) ====================================
+
+export async function insertMt5Snapshot(row: {
+  account: Record<string, unknown>;
+  positions: Array<Record<string, unknown>>;
+  bridge_status?: string;
+}): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await db.from('mt5_snapshots').insert({
+    account: row.account,
+    positions: row.positions,
+    bridge_status: row.bridge_status ?? 'ok',
+  });
+}
+
+export async function latestMt5Snapshot(): Promise<Record<string, unknown> | null> {
+  const db = getDb();
+  if (!db) return null;
+  const { data } = await db.from('mt5_snapshots').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+  return (data as Record<string, unknown> | null) ?? null;
+}

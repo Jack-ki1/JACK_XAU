@@ -63,6 +63,17 @@ export interface BacktestSummary {
   winRate: number | null
   netPoints: number
   avgPointsPerSignal: number | null
+  /** v2 honesty layer: win rate CI + sample flag + R-based risk metrics. */
+  winRateCI95: { low: number; high: number } | null
+  smallSample: boolean
+  expectancyR: number | null
+  profitFactor: number | null
+  sqn: number | null
+    avgWinR: number | null
+    avgLossR: number | null
+    maxConsecutiveLosses: number
+    /** v2 research lab: per-trade R, chronological — feeds Monte Carlo/WFO. */
+    rSequence: number[]
   byType: Record<string, { total: number; wins: number; winRate: number | null }>
   byPath: Record<string, { total: number; wins: number; winRate: number | null }>
   // STAGE ADD: three genuinely actionable breakdowns, per explicit

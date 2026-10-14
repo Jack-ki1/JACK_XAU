@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { analyseOneSignal } from '../../services/analysis.js';
 import { getSignals, ingestSignal } from '../../services/catalog.js';
-import { getSignalBySignalId, listSignalsByIds } from '../../repositories/repos.js';
+import { getSignalBySignalId, listSignalsByIds, listSignalEvents } from '../../repositories/repos.js';
 import { apiError } from '../../lib/errors.js';
 
 export async function signalRoutes(app: FastifyInstance): Promise<void> {
@@ -23,6 +23,16 @@ export async function signalRoutes(app: FastifyInstance): Promise<void> {
       return;
     }
     return { signal: sig };
+  });
+
+  app.get('/v1/signals/:id/events', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const sig = await getSignalBySignalId(id);
+    if (!sig) {
+      void reply.code(404).send(apiError('not_found', `No signal ${id}.`));
+      return;
+    }
+    return { signal_id: id, events: await listSignalEvents(id) };
   });
 
   // Token-guarded ingest for the external producer (main.py / TradingView

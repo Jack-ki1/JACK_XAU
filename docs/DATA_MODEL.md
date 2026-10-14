@@ -224,3 +224,24 @@ create table openrouter_usage (
 -- tables directly today and will break the moment deny-all lands, by design.
 -- alter table ... enable row level security; (no permissive policies)
 ```
+
+## 9. v2 tables (migrations `0003_v2_pipeline.sql` + `0004_mt5_sync.sql`)
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `candles` | Our own OHLCV store (backtests read this first) | `symbol, tf, ts_utc` (PK), `open/high/low/close`, `source`, `tick_volume` |
+| `signal_events` | Append-only state-machine log per signal | `signal_id, ts, type, payload` |
+| `ingest_rejections` | Failed ingest attempts (zod/parity guard) | `reason, body, created_at` |
+| `provider_credits` | Rate-limit ledger (per-minute bucket + per-day) | `bucket_start, provider, key_slot, credits` (PK) |
+| `ai_runs` | LLM audit trail — every run incl. failures | `signal_id, prompt_version, model, input_snapshot, output, latency_ms, tokens, created_at` |
+| `signal_journal` | Desk notes per signal | `signal_id` (PK), `notes, tags, checklist, updated_at` |
+| `alert_rules` | Configured alert rules | `name, kind, config, enabled` |
+| `alert_events` | Deduped alert firings | `dedupe_key` (unique), `message, rule_id, delivered_at` |
+| `desk_read_state` | Server-side unread markers | `key` (PK), `last_read_at` |
+| `mt5_snapshots` | Read-only MT5 account/position mirror | `account, positions, bridge_status, created_at` |
+
+`signals` gained: `strategy_version, param_hash, entry_spread, ladder, state`.
+
+All v2 tables are API-only (service role); migration `0002` deny-all covers
+anon/authenticated. Append-only tables (`signal_events`, `ai_runs`,
+`alert_events`, `mt5_snapshots`) are never updated in place.

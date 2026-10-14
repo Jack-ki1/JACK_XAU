@@ -189,3 +189,107 @@ Any "strict TypeScript" goal (Phase 1/§7) starts by fixing lint, not tsc.
 3. The brief implies API routes are *wholly* unprotected — **corrected**: 9/13 carry a cron-secret guard; the exposure is 3 specific routes (R1–R3), not the whole surface.
 4. The brief's colour-system starting tokens (§5.2) assume specific current colours; actual current palette is documented in `docs/UX_CRITIQUE.md` — several proposed tokens already exist under different names.
 5. `AGENTS.md`'s Next.js breaking-changes notice was checked: `node_modules/next/dist/docs/` exists (`01-app`, `02-pages`, `03-architecture`, `04-community`). No Next.js source changes are made in Phase 0, so no doc-driven decisions were needed yet; the relevant guides (notably `01-app`) will be read before any App Router work in Phase 2+.
+
+---
+
+## V2 delta audit (brief v2 findings R1–R10, verified 2026-10-13 against post-transform HEAD)
+
+The v1 transform (Phases 0–9) already closed most of R1–R10. This section
+re-verifies each finding against the **current** code and records what remains.
+
+### R1 — Login stub / workspace home
+
+**CLOSED.** `app/login/` no longer exists (deleted in Phase 1). Root
+`apps/web/src/app/page.tsx` still redirects `/` → `/overview`, which IS the
+workspace home — the redirect is now correct behaviour, not an artefact.
+No other auth remnants (grep for sign-in/getServerSession/next-auth: zero hits).
+
+### R2 — Undocumented API routes
+
+**CLOSED.** Every route now lives in `apps/api/src/routes/v1/*` with an
+inventory in `docs/RUNBOOK.md`. Full current surface (all machine-guarded
+except `/v1/health`):
+
+| Group | Endpoints | Trigger | Secrets |
+|---|---|---|---|
+| health | `GET /v1/health` | polled | none (by design) |
+| signals | `GET /v1/signals`, `GET /v1/signals/:id`, `POST /v1/signals/ingest`, `POST /v1/signals/:id/analyse`, `POST /v1/signals/analyse` | UI / producer / cron | API_TOKEN |
+| desk | `GET /v1/{notifications, signals/resolved, usage/analysed, verdicts/:table, desk/status, market/candles}` | UI via proxy | API_TOKEN (injected) |
+| reports | `GET /v1/{market/status, analysis/status, analysis/closed, performance, backtests, backtests/:id, stream}`, `POST /v1/backtests` | UI | API_TOKEN |
+| ops | `POST /v1/jobs/:name`, `GET /v1/jobs`, `GET /v1/{news/window, calendar, levels, settings}`, `POST /v1/{calendar/refresh, transitions/check, resolution/check-*, news/process}`, `PATCH /v1/settings` | scheduler + UI + legacy cron | API_TOKEN / CRON_SECRET |
+
+Legacy `/api/check-*` web routes remain as thin forwarders only.
+Twelve Data credit burn (worst case, per day): resolvers 3 jobs × every
+10 min ≈ 432 calls; levels 1/day×2 + 1 spot/5min ≈ 290; backtest up to
+8 series × 40 pages, rate-limited to 10 runs/day; LLM price context ~5/run.
+
+### R3 — Browser Supabase + localStorage unread state
+
+**CLOSED for Supabase** (web has zero supabase-js since Phase 7; verified by
+grep — only `lib/env.ts` mentions the URL as a demo-mode flag).
+**PARTIALLY OPEN for unread state**: `components/shell/Sidebar.tsx:48-63`
+still uses `localStorage` keys (`jacktrade_signals_last_seen`,
+`jacktrade_analysed_signals_last_seen`) — per-browser, not per-desk.
+v2 C10 supersedes this with server-side read-state (tracked in P11).
+
+### R4 — priceLevels cache/notification mixing
+
+**CLOSED.** Pure detection now in `packages/engine` (`detectBreaks`,
+`weekRolledOver`); I/O in `apps/api/src/services/levels.ts`. Dedupe flags
+still in `app_settings` — acceptable interim; alert dedupe table lands with
+P11.
+
+### R5 — `TWELVEDATA_API_KEY_RESOLUTION`
+
+**ANSWERED.** It is a distinct env **slot**, not a mode flag: resolvers
+(`services/resolution.ts`) and levels (`services/levels.ts:88`) read it via
+`providers/twelveData.ts:87-89`. Three slots exist so the desk can point
+backtest / resolution / LLM-context at different Twelve Data accounts. If the
+same key value is placed in all three, they share one account's rate limit
+(8/min, 800/day Basic); if different, limits are independent. Name kept for
+back-compat; documented in `.env.example`. v2 P3 credit ledger tracks actual
+spend per slot.
+
+### R6 — Backtest engine as core IP / correctness risk
+
+**PARTIALLY CLOSED.** Engine extracted to `packages/engine` (pure, split
+modules), 37 vitest tests + golden snapshot. **Still missing (v2):**
+TradingView parity checker (`tools/parity/`), look-ahead guard test,
+M1 bar-magnifier resolution, cost model (spread/commission/slippage) —
+scheduled in P2/P8.
+
+### R7 — LLM audit trail / prompt versioning / calibration
+
+**OPEN (v2 P10).** Verdicts still inserted without input snapshot, prompt
+version or `ai_runs` row. No calibration metrics. Scheduled.
+
+### R8 — Basics
+
+**MOSTLY CLOSED.** `.env.example` ✓, CI ✓ (typecheck/lint/contrast/test/
+build), tests ✓, migrations ✓, schema in `supabase/migrations/` ✓.
+**Still missing:** LICENSE file (adding MIT this phase), repo topics/description
+(user, via GitHub UI).
+
+### R9 — Public repo exposes strategy
+
+**OPEN — user action required.** Engine + prompts are in a public repo.
+Recommend `gh repo edit --visibility private`. History scan re-run this
+phase: **clean** (only zod's JWT test fixture in node_modules matches; no
+rotation needed).
+
+### R10 — Demo mode + typed env
+
+**CLOSED.** `apps/web/src/lib/env.ts` + `apps/api/src/config/env.ts` (zod,
+lenient). Build with empty creds is CI-enforced; DemoRibbon + simulated
+chart bars verified.
+
+### V2 open decisions (defaults chosen pending user input)
+
+| # | Decision | Default taken |
+|---|---|---|
+| G1 | MT5 execution / bridge | Bridge code shipped in `tools/mt5-bridge/` (outbound-only, no order placement); user runs it on Windows when ready |
+| G2 | Calendar provider | Keep JBlanked; normalise behind provider interface; FMP stub optional |
+| G3 | Daily-candle boundary | Configurable `dayBoundary` setting (default 00:00 UTC), single source used by levels/analysis/backtest |
+| G4 | Pine script for parity | Harness accepts TradingView Strategy Tester CSV export; report says "unverified" until first import |
+| G5 | Repo private | Flagged to user; cannot change from this environment |
+| G6 | Fonts / default theme | `/dev/type` specimen ships with Manrope+Inter+Geist Mono, Plus Jakarta, Sora candidates; app defaults Manrope+Inter+Geist Mono + Daylight theme until user picks |

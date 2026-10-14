@@ -1,10 +1,13 @@
 // app/(app)/backtest/page.tsx
 'use client'
 /* eslint-disable react-hooks/set-state-in-effect -- async run results land from poll */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/apiClient'
-import { DEFAULT_PARAMS, type BacktestParams, type SimulatedSignal } from '@jack-trade/engine'
+import {
+  DEFAULT_PARAMS, monteCarlo,
+  type BacktestParams, type SimulatedSignal, type BacktestSummary, type MonteCarloResult,
+} from '@jack-trade/engine'
 
 interface BacktestMeta {
   barsCounts: Record<string, number>;
@@ -13,8 +16,6 @@ interface BacktestMeta {
   used: number;
   limit: number;
 }
-
-interface RateStat { total: number; wins: number; winRate: number | null }
 
 // async run object returned by the API (POST 202 → poll GET)
 interface BtRun {
@@ -60,24 +61,10 @@ interface ConfigDraft {
 interface ConfigResult {
   name: string
   params: BacktestParams
-  summary: {
-    total: number; wins: number; losses: number; stillOpen: number; winRate: number | null
-    netPoints: number; avgPointsPerSignal: number | null
-    byType: Record<string, RateStat>
-    byPath: Record<string, RateStat>
-    // STAGE FIX: these three were added to the engine's own
-    // BacktestSummary interface but NOT here -- this page declares
-    // its own separate inline copy of the shape, so the engine
-    // having them wasn't enough. That mismatch is exactly what
-    // failed the TypeScript build. Kept as an inline declaration
-    // (rather than importing BacktestSummary) to match how this file
-    // already worked, but noting the real risk: two hand-maintained
-    // copies of one shape WILL drift again -- this is the second
-    // time. Worth importing the type directly if it drifts once more.
-    byRRLevel: Record<string, RateStat>
-    byGrade: Record<string, RateStat>
-    bySession: Record<string, RateStat>
-  }
+  // Imported directly (was a hand-maintained inline copy that drifted twice —
+  // see git history). Engine owns this shape incl. the v2 honesty fields and
+  // rSequence for the research-lab Monte Carlo.
+  summary: BacktestSummary
   signals: SimulatedSignal[]
   // STAGE ADD: remembering the lesson from the last build failure --
   // this page keeps its OWN inline copy of the response shape, so
@@ -145,6 +132,15 @@ export default function BacktestPage() {
   const [runId, setRunId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<ConfigResult[] | null>(null)
+  // Research lab: Monte Carlo over each result's per-trade R sequence.
+  // Seeded → stable across re-renders; computed once per run result.
+  const mcRuns = useMemo<{ name: string; mc: MonteCarloResult | null }[]>(
+    () => (results ?? []).map((r) => ({
+      name: r.name,
+      mc: (r.summary.rSequence ?? []).length >= 10 ? monteCarlo(r.summary.rSequence, { iterations: 2000, seed: 42 }) : null,
+    })),
+    [results],
+  )
   const [meta, setMeta] = useState<BacktestMeta | null>(null)
   const [expandedSignals, setExpandedSignals] = useState<Set<number>>(new Set())
 
@@ -444,6 +440,35 @@ export default function BacktestPage() {
                 return (
                   <div className="font-mono text-[10px] mb-5" style={{ color: tier.color }}>
                     Sample size: {tier.label}
+                  </div>
+                )
+              })()}
+
+              {mcRuns[ri]?.mc && (() => {
+                const mc = mcRuns[ri]!.mc!
+                return (
+                  <div className="mb-4 pb-4 border-b border-[var(--border)]">
+                    <div className="font-mono text-[9px] text-[var(--border-strong)] uppercase mb-1.5">
+                      Monte Carlo · 2000 seeded paths over this run&apos;s trades
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
+                      <div>
+                        <div className="text-[9px] text-[var(--text-2)]">median final</div>
+                        <div className={mc.finalR.p50 >= 0 ? 'text-[var(--bull)]' : 'text-[var(--bear)]'}>{mc.finalR.p50.toFixed(1)}R</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-[var(--text-2)]">p5 – p95</div>
+                        <div className="text-[var(--text-1)]">{mc.finalR.p5.toFixed(1)}R … {mc.finalR.p95.toFixed(1)}R</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-[var(--text-2)]">max DD (p95)</div>
+                        <div className="text-[var(--warn)]">{mc.maxDrawdownR.p95.toFixed(1)}R</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-[var(--text-2)]">ruin rate (≥10R DD)</div>
+                        <div className={mc.ruinRate > 0.1 ? 'text-[var(--bear)]' : 'text-[var(--text-1)]'}>{(mc.ruinRate * 100).toFixed(1)}%</div>
+                      </div>
+                    </div>
                   </div>
                 )
               })()}

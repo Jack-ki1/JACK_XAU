@@ -5,6 +5,7 @@ import type { HtfConfluenceEntry, SignalRow } from '@jack-trade/shared'
 import { api } from '@/lib/apiClient'
 import { isDemoMode } from '@/lib/env'
 import { demoSignals } from '@/lib/demo'
+import SignalJournal from '@/components/signals/SignalJournal'
 
 const POINT_SIZE = 0.01
 function pointsBetween(a: number, b: number) {
@@ -264,6 +265,8 @@ export default function SignalsPage() {
                     {sig.signal_version && (
                       <div className="font-mono text-[10px] text-[var(--border-strong)]">Pine version: {sig.signal_version}</div>
                     )}
+
+                    <SignalJournal signalId={sig.signal_id} />
                   </div>
                 )}
               </div>

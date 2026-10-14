@@ -1,6 +1,7 @@
 import { POINT_VALUE } from './types';
 import type { SimulatedSignal, BacktestSummary } from './types';
 import { getActiveSession } from '../sessions';
+import { honestTradeStats, rTradesFromOutcomes } from '../honestStats';
 
 export function summarize(signals: SimulatedSignal[]): BacktestSummary {
   const resolved = signals.filter(s => s.outcome !== 'still_open')
@@ -71,6 +72,9 @@ export function summarize(signals: SimulatedSignal[]): BacktestSummary {
     bySession[name] = { total: group.length, wins: gWins, winRate: group.length ? Math.round((gWins / group.length) * 1000) / 10 : null }
   }
 
+  const rTrades = rTradesFromOutcomes(resolved.map((s) => ({ outcome: s.outcome as 'tp_hit' | 'stopped_out', rrUsed: s.rrUsed })));
+  const honest = honestTradeStats(rTrades);
+
   return {
     total: signals.length,
     wins,
@@ -79,6 +83,17 @@ export function summarize(signals: SimulatedSignal[]): BacktestSummary {
     winRate: resolved.length ? Math.round((wins / resolved.length) * 1000) / 10 : null,
     netPoints,
     avgPointsPerSignal,
+    winRateCI95: honest.ci95,
+    smallSample: honest.smallSample,
+    expectancyR: honest.expectancyR,
+    profitFactor: honest.profitFactor,
+    sqn: honest.sqn,
+    avgWinR: honest.avgWinR,
+    avgLossR: honest.avgLossR,
+    maxConsecutiveLosses: honest.maxConsecutiveLosses,
+    // v2 research lab: per-trade R in chronological order — feeds the
+    // client-side Monte Carlo / walk-forward without another round trip.
+    rSequence: rTrades.map((t) => t.r),
     byType,
     byPath,
     byRRLevel,

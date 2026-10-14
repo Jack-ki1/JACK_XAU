@@ -2,8 +2,10 @@
 
 Repo: `Jack-ki1/JACK_XAU` (local `/home/jackson11/projects/trading/GOLD_TRADING_TOOL`)
 Product: **JACK TRADE** — personal, single-user XAUUSD trading desk (no login, ever).
-Work: executed the full phased Transformation Prompt (Phases 0–8) back-to-back,
-then a Phase 9 premium UI refresh. All merged to `main`.
+Work: (1) executed the full phased Transformation Prompt (Phases 0–9) back-to-back;
+(2) executed the **v2 brief** (findings R1–R10, visual direction B*, functionality
+blueprint C1–C11, phased plan E) — see the “v2 transform session” section at the
+bottom. v1 is committed/tagged; v2 work sits in the working tree ready to commit.
 
 ## Git state
 
@@ -16,10 +18,11 @@ then a Phase 9 premium UI refresh. All merged to `main`.
   - `transform/phase-4-design-shell` (`d6d53a9`) — design system
   - `transform/phase-5-chart-blotter` (`8a80205`) — chart + blotter
   - `transform/phase-6-analytics-tester` (`d3c28eb`) — analytics + async backtester
-  - `transform/phase-7-full-api` (`06098a9`) — every page on API
+  - `transform/phase-7-full-api` (`0609a8a` → `0609a8a`?) — every page on API
   - `transform/phase-8-polish` (`1dca6ce`) — Docker, RUNBOOK, README
   - `transform/phase-9-premium` (`49fd49f`) — premium UI refresh
-- HEAD = `main` @ `49fd49f`, working tree clean.
+- HEAD = `main` @ `ea06b3c` (“v1”); **v2 work is uncommitted** in the working
+  tree (66 changed/new files, all gates green) — commit it as one v2 change.
 - **Push must be done manually by user** (no GitHub credentials in this env):
   `git push origin main --tags`
 
@@ -92,16 +95,15 @@ producer (main.py, external) ── POST /v1/signals/ingest (Bearer API_TOKEN | 
     panel shadows + `--radius: 10px`, button hover-lift, unified page h1s
     (26px semibold tracking -0.02em), `viewport.themeColor`.
 
-## Verification state (all green at HEAD)
+## Verification state (all green, v2 working tree)
 
 - `npm run typecheck` 0 errors (web+api+engine+shared)
 - `npm run lint` 0 issues
-- `npm run check:contrast` 42/42 pairs AA (3 themes)
-- `npm run test` 37/37 (engine vitest, golden snapshot)
+- `npm run check:contrast` 69/69 pairs AA (3 themes + candle presets)
+- `npm run test` 101/101 (engine vitest, golden snapshot regenerated)
 - `npm run build` passes with NO env (demo-mode boot enforced)
-- Smoke: all 8 pages 200; `/api/v1/{desk/status, market/candles, verdicts,
-  signals/resolved, usage/analysed, calendar, stream}` 200 via proxy; SSE
-  streams through proxy.
+- v1 smoke (8 pages 200, `/api/v1/*` via proxy, SSE) was green at the v1
+  commit; live smoke not re-run after the v2 changes (gates above only).
 
 ## Environment quirks (important for future sessions)
 
@@ -129,3 +131,101 @@ producer (main.py, external) ── POST /v1/signals/ingest (Bearer API_TOKEN | 
 5. Visual screenshot QA blocked on system libs (see quirks).
 6. Deferred polish: table-row density restyle, settings cards' inline styles
    (already close to new radius).
+7. v2 deferred (schema-ready, evaluator/UI work remains): alert kinds
+   `level_break` / `signal_state` / `session` / `rule_breach`; drag-resize
+   widget layouts (order+show/hide shipped); TradingView tester CSV parity
+   run needs a real export (`tools/parity`); MT5 bridge needs a Windows run.
+8. Live smoke after v2 (start web+api, hit new endpoints) not yet run.
+
+## v2 transform session (2026-10-13)
+
+Executed the v2 brief (findings R1–R10, visual direction B*, functionality
+blueprint C1–C11) on top of the merged v1. Decisions/defaults recorded in
+`docs/AUDIT.md` (G1–G6) and `docs/adr/0003-v2-pipeline-and-desk-services.md`.
+
+### Engine (`packages/engine`, +85 tests)
+
+- `pipeline.ts` — signal state machine (created→open→tp1/tp2/tp3→closed/
+  stopped/expired/cancelled), `applyTransition`/`projectToRow`/`stateFromRow`,
+  `ladderPath`; append-only `signal_events` log.
+- `backtest/magnifier.ts` — M1 bar magnifier; same-bar TP+SL ambiguity
+  resolves **pessimistically** (loss), gaps fill at bar open.
+- `honestStats.ts` — Wilson CI, expectancy R, profit factor, SQN, Sharpe/
+  Sortino, small-sample flags; `BacktestSummary` extended (golden snapshot
+  regenerated twice: honesty fields, then `rSequence`).
+- `risk.ts` — `positionSize` (XAUUSD 100oz, $1/pt/lot, rounds lots DOWN,
+  maxLots cap, ≥2% guideline warning) + `exposureSummary` (aggregate vs desk
+  caps). Tested incl. direction symmetry.
+- `research.ts` — seeded (mulberry32) `monteCarlo` (final-R percentiles,
+  max-DD distribution, ruin rate), `walkForwardFolds`/`walkForwardSummary`
+  (train/test degradation), `costAdjusted`/`costSummary` (point friction→R,
+  winner-flip count).
+- `levels.ts` += `roundNumberLevels`, `nearestLevel` (points+side),
+  `levelConfluence` (tolerance band score).
+- `timeModel.ts` — configurable day/week boundaries (default 00:00 UTC).
+- Property tests via `fast-check`; `tools/parity/` harness for TradingView
+  strategy-tester CSV comparison.
+
+### API (`apps/api`)
+
+- Migration `0003_v2_pipeline.sql`: `candles`, `signal_events`,
+  `ingest_rejections`, `provider_credits`, `ai_runs`, `signal_journal`,
+  `alert_rules`, `alert_events`, `desk_read_state` + 5 `signals` columns.
+  `0004_mt5_sync.sql`: `mt5_snapshots` (append-only).
+- `services/pipeline.ts` — zod-validated idempotent ingest (rejections
+  logged), state machine + event log; `services/candles.ts` — store with
+  gap/outlier detection + `backfillStandardLadder` (6h job) + freshness;
+  `lib/credits.ts` — per-minute/per-day provider credit ledger;
+  `providers/priceProvider.ts` — staleness-aware provider abstraction.
+- **C9.2 audit trail**: prompts moved to `prompts/verdict.ts` with version
+  constants; every Groq run (analysed + news, success AND failure) appends
+  `ai_runs` (prompt_version, snapshot, output, latency, tokens) — logging is
+  best-effort and can't break analysis. `completeVerdict` now returns run
+  metadata.
+- **C10 alerts**: `services/alerts.ts` (feed_stale, job_failed,
+  news_tminus, price_cross; deduped by `dedupe_key`) as `evaluateAlerts`
+  5m job + rules CRUD/events/evaluate routes; server-side read-state
+  (`desk_read_state`) wired into the Topbar badge.
+- **C11**: `/v1/health` gains a degradation matrix + overall
+  `ok|degraded|down`; MT5 routes (`/v1/mt5/sync|status`); `tools/mt5-bridge`
+  (read-only Windows Python bridge, retry/backoff, README).
+- New/extended routes: ops credits/candles/backfill/ai-runs, journal
+  GET/PUT (zod), read-state GET/PUT, `/v1/signals/:id/events`, alert rules.
+
+### Web (`apps/web`)
+
+- **Design system (B*)**: rewritten `styles/tokens.css` — themes renamed
+  `daylight` (default) / `sunrise` / `aurora` (legacy midnight/graphite →
+  aurora, migrated in uiStore + no-FOUC boot), bright fills carry navy text,
+  glass/mesh/radius tokens, candle presets (`classic`/`sky-orange`/
+  `mint-coral`, `data-candle`) with Okabe-Ito CB-safe option; legacy CSS
+  aliases keep v1 components compiling. Contrast gate rewritten (69 pairs).
+- Widget library `components/ui/widgets.tsx` (GlassCard, KpiTile, DeltaChip,
+  Sparkline, Donut, Gauge, CountdownRing, StatusStrip…); `/dev/type` type
+  specimen + `/dev/ui` gallery.
+- **Overview rebuilt as a widget grid** (`lib/layouts.ts`): named layouts
+  Live/Review/Research, per-layout order + show/hide, persisted; KPI tiles,
+  chart workspace, desk-bias gauge + TF boxes, next-high-impact countdown,
+  event feed, system status strip.
+- **Risk desk `/risk`**: engine-backed size calculator (persisted inputs,
+  prefill from open signals) + aggregate exposure vs caps (5 lots / 5%).
+- **Blotter**: `SignalJournal` panel per expanded signal — journal editor
+  (PUT `/journal/:id`), event timeline, ai_runs audit trail.
+- Backtest page: inline summary type replaced with engine's
+  `BacktestSummary` (drifted twice before); **Monte Carlo card** (2000
+  seeded paths: median/p5–p95 final R, p95 max DD, ruin rate).
+- PWA `manifest.ts` + 192/512 icons; nav/palette entries for Risk.
+- Read-state hydration so notification badge survives refresh.
+
+### Docs
+
+- `docs/AUDIT.md` + “V2 delta audit” (R1–R10 verdicts, G1–G6 defaults),
+  `docs/adr/0003`, DATA_MODEL §9 (v2 tables), RUNBOOK (9 jobs, v2 endpoint
+  table, degradation matrix, test count), `LICENSE` (MIT),
+  `tools/mt5-bridge/README.md`.
+
+### Verification (this session, all green)
+
+typecheck 0 · lint 0 · contrast 69/69 AA · engine 101/101 · build OK with
+no env (`/risk`, `/dev/*`, `/manifest.webmanifest` all emitted).
+Secret scan of the full diff: clean.

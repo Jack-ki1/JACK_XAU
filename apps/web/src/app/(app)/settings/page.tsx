@@ -1,12 +1,14 @@
 'use client'
-import { useUiStore, THEME_ORDER, type ThemeId, type Density } from '@/lib/uiStore'
+import { useUiStore, THEME_ORDER, CANDLE_PRESETS, type ThemeId, type CandlePreset, type Density } from '@/lib/uiStore'
 import { Segmented } from '@/components/ui/Panel'
 
 export default function SettingsPage() {
   const theme = useUiStore((s) => s.theme)
+  const candle = useUiStore((s) => s.candle)
   const density = useUiStore((s) => s.density)
   const cbSafe = useUiStore((s) => s.cbSafe)
   const setTheme = useUiStore((s) => s.setTheme)
+  const setCandle = useUiStore((s) => s.setCandle)
   const setDensity = useUiStore((s) => s.setDensity)
   const toggleCbSafe = useUiStore((s) => s.toggleCbSafe)
 
@@ -36,6 +38,17 @@ export default function SettingsPage() {
               value={theme}
               onChange={setTheme}
               options={THEME_ORDER.map((t) => ({ value: t, label: t }))}
+            />
+          </div>
+          <div className="flex justify-between items-center py-2 border-t border-[var(--border)]">
+            <div>
+              <div className="text-sm text-[var(--text-1)]">Candle preset</div>
+              <div className="font-mono text-[11px] text-[var(--text-2)] mt-1">Chart up/down colours · independent of theme · sky-orange is colour-blind safe</div>
+            </div>
+            <Segmented<CandlePreset>
+              value={candle}
+              onChange={setCandle}
+              options={CANDLE_PRESETS.map((c) => ({ value: c, label: c === 'sky-orange' ? 'Sky/Orange' : c === 'mint-coral' ? 'Mint/Coral' : 'Classic' }))}
             />
           </div>
           <div className="flex justify-between items-center py-2 border-t border-[var(--border)]">

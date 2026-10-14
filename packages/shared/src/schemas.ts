@@ -62,6 +62,42 @@ export const apiErrorSchema = z.object({
   error: z.object({ code: z.string(), message: z.string(), details: z.unknown().optional() }),
 });
 
+// ===== v2: hardened ingest contract (C2.1) =============================
+export const candleTfSchema = z.enum(['1m', '5m', '15m', '1h', '4h', '1d']);
+export const ladderSchema = z.enum(['none', 'tp1', 'tp2', 'tp3']);
+
+export const ingestSignalSchema = z.object({
+  signal_id: z.string().min(1).max(200),
+  symbol: z.string().min(1).max(20).default('XAUUSD'),
+  direction: z.enum(['buy', 'sell', 'long', 'short']),
+  signal_type: z.string().max(50).nullable().optional(),
+  path: z.string().max(50).nullable().optional(),
+  entry: z.number().finite().nullable().optional(),
+  exits: exitsSchema.default({}),
+  risk: z.record(z.string(), z.unknown()).default({}),
+  grade: z.record(z.string(), z.unknown()).default({}),
+  htf_confluence: z.array(z.record(z.string(), z.unknown())).default([]),
+  htf_rung: z.string().max(20).nullable().optional(),
+  execution_tf: z.string().max(10).nullable().optional(),
+  manual_entry_filter: z.record(z.string(), z.unknown()).nullable().optional(),
+  window_info: z.record(z.string(), z.unknown()).nullable().optional(),
+  signal_version: z.string().max(50).nullable().optional(),
+  strategy_version: z.string().max(50).nullable().optional(),
+  param_hash: z.string().max(64).nullable().optional(),
+  entry_spread: z.number().nonnegative().nullable().optional(),
+  created_at: z.string().datetime({ offset: true }).nullable().optional(),
+});
+
+export const journalEntrySchema = z.object({
+  notes: z.string().max(20000).optional(),
+  tags: z.array(z.string().min(1).max(40)).max(50).optional(),
+  checklist: z.record(z.string(), z.boolean()).optional(),
+});
+
+export type IngestSignalT = z.infer<typeof ingestSignalSchema>;
+export type CandleTfT = z.infer<typeof candleTfSchema>;
+export type JournalEntryT = z.infer<typeof journalEntrySchema>;
+
 export type SignalRowT = z.infer<typeof signalRowSchema>;
 export type LlmVerdictT = z.infer<typeof llmVerdictSchema>;
 export type BacktestRequestT = z.infer<typeof backtestRequestSchema>;

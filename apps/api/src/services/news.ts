@@ -1,12 +1,14 @@
 // api/services/news — news-window verdicts (Groq, news-weighted prompt).
 // Ports process-news-signals. Zero cost outside an active window.
-import { computePreferredExit, rrLevelsFor } from '@jack-trade/engine';
+// Each run is appended to ai_runs with its own prompt version (C9.2).
+import { computePreferredExit } from '@jack-trade/engine';
 import type { SignalRow } from '@jack-trade/shared';
 import { getEnv } from '../config/env.js';
 import { completeVerdict, modelName } from '../providers/llm.js';
 import { fetchHeadlines } from '../providers/finnhub.js';
+import { buildNewsPrompt, NEWS_PROMPT_VERSION } from '../prompts/verdict.js';
 import { getDb } from '../repositories/client.js';
-import { bumpUsage, calendarWindow, getUsage, highImpact } from '../repositories/repos.js';
+import { bumpUsage, calendarWindow, getUsage, highImpact, insertAiRun } from '../repositories/repos.js';
 import { publish } from '../plugins/sse.js';
 
 const DAILY_LIMIT = 1000;
@@ -15,25 +17,12 @@ const PRE_MINUTES = 15;
 const POST_MINUTES = 30;
 const MAX_PER_RUN = 5;
 
-function buildPrompt(sig: SignalRow, eventLabel: string, newsText: string): string {
-  const rrLevels = rrLevelsFor(sig.signal_type);
-  return `A high-impact economic event is active right now: ${eventLabel}. This is happening DURING or immediately around this signal firing.
-
-Recent relevant news headlines:
-${newsText || 'No headlines available this check -- weight the event itself heavily regardless.'}
-
-Trading signal from JACK TRADE's own XAUUSD strategy, fired during this news window:
-- Direction: ${sig.direction}
-- Entry: ${sig.entry}
-- Pine's own chosen exit: SL ${sig.exits?.sl}, TP ${sig.exits?.tp}, R:R 1:${sig.risk?.tp_rr ?? sig.exits?.rr_selected}
-- Grade: ${sig.grade?.value}/${sig.grade?.of} timeframes in agreement
-
-WEIGHT THE NEWS AND EVENT ABOVE AS PRIMARY -- this is different from a normal technical check. Ask first: does the news/event content support or contradict this ${sig.direction} direction? Only use the grade/technical data as secondary, confirming context, not the main basis for your verdict.
-
-IMPORTANT CONSTRAINT: you do not have raw structural price data beyond what's given -- Pine's own SL (${sig.exits?.sl}) is the only genuine structural reference available. If invalid, do NOT invent a different SL. Only suggest a different R:R ratio from this list: [${rrLevels.join(', ')}], more conservative if the news creates real uncertainty.
-
-Respond with ONLY this JSON, no other text:
-{"verdict": "valid" or "invalid", "reasoning": "1-2 sentences, referencing the specific news/event and how it relates to this direction", "preferred_rr": <one number from the list, or null if valid>}`;
+async function logAiRun(row: Record<string, unknown>): Promise<void> {
+  try {
+    await insertAiRun({ provider: 'groq', model: modelName(), prompt_version: NEWS_PROMPT_VERSION, ...row });
+  } catch {
+    /* audit trail is best-effort */
+  }
 }
 
 export async function processNewsSignals() {
@@ -71,7 +60,8 @@ export async function processNewsSignals() {
       continue;
     }
     try {
-      const parsed = await completeVerdict(key, buildPrompt(sig, activeEvent.label, newsText));
+      const prompt = buildNewsPrompt(sig, activeEvent.label, newsText);
+      const parsed = await completeVerdict(key, prompt);
       credits++;
       const { tp, rr } = computePreferredExit({
         direction: sig.direction, entry: sig.entry, sl: sig.exits?.sl,
@@ -91,10 +81,18 @@ export async function processNewsSignals() {
         reasoning: parsed.reasoning ?? '',
         status: 'open',
       });
+      await logAiRun({
+        signal_id: sig.signal_id,
+        input_snapshot: { prompt, event: activeEvent.label, headlines: newsText },
+        output: { verdict: parsed.verdict, reasoning: parsed.reasoning ?? '', preferred_rr: parsed.preferred_rr ?? null },
+        latency_ms: parsed.run.latencyMs,
+        tokens: parsed.run.tokens,
+      });
       processed++;
       results.push({ signal_id: sig.signal_id, verdict: parsed.verdict });
       publish({ kind: 'signal_analysed', signal_id: sig.signal_id, verdict: parsed.verdict, news: true });
     } catch (err) {
+      await logAiRun({ signal_id: sig.signal_id, input_snapshot: { stage: 'failed' }, output: { error: err instanceof Error ? err.message : String(err) } });
       results.push({ signal_id: sig.signal_id, outcome: 'error', detail: err instanceof Error ? err.message : String(err) });
     }
   }

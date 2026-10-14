@@ -39,6 +39,7 @@ interface Readout { o?: number; h?: number; l?: number; c?: number; time?: strin
 export default function ChartWorkspace() {
   const [tf, setTf] = useState<Tf>('15m')
   const theme = useUiStore((s) => s.theme)
+  const candlePreset = useUiStore((s) => s.candle)
   const cbSafe = useUiStore((s) => s.cbSafe)
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -76,13 +77,17 @@ export default function ChartWorkspace() {
       rightPriceScale: { borderColor: cssVar(el, '--border') },
       timeScale: { borderColor: cssVar(el, '--border'), timeVisible: true, secondsVisible: false },
     })
+    // Candle colours come from the data-candle preset (classic / sky-orange /
+    // mint-coral). Colour-blind mode forces the Okabe–Ito-safe swap.
+    const up = cbSafe ? '#0a84ff' : cssVar(el, '--candle-up') || '#34d399'
+    const down = cbSafe ? '#ff9f0a' : cssVar(el, '--candle-down') || '#fb7185'
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: cbSafe ? '#0072b2' : cssVar(el, '--bull'),
-      downColor: cbSafe ? '#e69f00' : cssVar(el, '--bear'),
-      borderUpColor: cbSafe ? '#0072b2' : cssVar(el, '--bull'),
-      borderDownColor: cbSafe ? '#e69f00' : cssVar(el, '--bear'),
-      wickUpColor: cbSafe ? '#0072b2' : cssVar(el, '--bull'),
-      wickDownColor: cbSafe ? '#e69f00' : cssVar(el, '--bear'),
+      upColor: up,
+      downColor: down,
+      borderUpColor: up,
+      borderDownColor: down,
+      wickUpColor: up,
+      wickDownColor: down,
     })
     chart.subscribeCrosshairMove((p) => {
       const d = p.seriesData.get(series) as { open?: number; high?: number; low?: number; close?: number } | undefined
@@ -96,7 +101,7 @@ export default function ChartWorkspace() {
       chartRef.current = null
       seriesRef.current = null
     }
-  }, [theme, cbSafe])
+  }, [theme, cbSafe, candlePreset])
 
   // candles → series
   useEffect(() => {

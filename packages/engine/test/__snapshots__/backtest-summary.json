@@ -1,5 +1,7 @@
 {
+  "avgLossR": null,
   "avgPointsPerSignal": null,
+  "avgWinR": null,
   "byGrade": {
     "0-2 (weak)": {
       "total": 0,
@@ -43,10 +45,17 @@
       "wins": 0,
     },
   },
+  "expectancyR": null,
   "losses": 0,
+  "maxConsecutiveLosses": 0,
   "netPoints": 0,
+  "profitFactor": null,
+  "rSequence": [],
+  "smallSample": true,
+  "sqn": null,
   "stillOpen": 0,
   "total": 0,
   "winRate": null,
+  "winRateCI95": null,
   "wins": 0,
 }

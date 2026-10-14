@@ -66,10 +66,27 @@ export default function Topbar({ onOpenPalette }: { onOpenPalette: () => void })
   })
 
   useEffect(() => {
+    let readStateApplied = false
     async function loadNotifications() {
       try {
         const res = await api<{ notifications: NotificationItem[] }>('/notifications?limit=20')
-        setNotifications(res.notifications ?? [])
+        const list = res.notifications ?? []
+        setNotifications(list)
+        // First load only: hydrate the unseen badge from the server read-state
+        // so a refresh doesn't re-flag old notifications (v2 C10).
+        if (!readStateApplied && list.length > 0) {
+          readStateApplied = true
+          try {
+            const rs = await api<{ last_read_at: string | null }>('/desk/read-state/notifications')
+            if (rs.last_read_at) {
+              const cutoff = new Date(rs.last_read_at).getTime()
+              const newestRead = list.find((n) => new Date(n.created_at).getTime() <= cutoff)
+              if (newestRead) setLastSeenNotifId(newestRead.id)
+            }
+          } catch {
+            /* read-state unavailable — keep in-memory badge only */
+          }
+        }
       } catch {
         /* API down — keep last known list */
       }
@@ -96,7 +113,11 @@ export default function Topbar({ onOpenPalette }: { onOpenPalette: () => void })
   function toggleNotifications() {
     setShowNotifications((prev) => {
       const next = !prev
-      if (next && notifications.length > 0) setLastSeenNotifId(notifications[0]!.id)
+      if (next && notifications.length > 0) {
+        setLastSeenNotifId(notifications[0]!.id)
+        // Persist read-state server-side (fire-and-forget; badge already updated).
+        void api('/desk/read-state/notifications', { method: 'PUT', body: '{}' }).catch(() => {})
+      }
       return next
     })
   }

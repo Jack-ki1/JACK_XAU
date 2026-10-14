@@ -26,11 +26,12 @@ docker compose up --build            # web :3000, api :3101
 
 ```
 browser ── same-origin /api/v1/* ──► web (Next 16) ── injects API_TOKEN ──► api (Fastify :3101)
-                                                                            ├─ jobs scheduler (7 locked jobs)
+                                                                            ├─ jobs scheduler (9 locked jobs)
                                                                             ├─ providers: TwelveData / Groq / calendar / Finnhub
                                                                             ├─ repositories ──► Supabase (service key)
                                                                             └─ SSE /v1/stream ──► browser (DeskEvents)
 external producer (main.py) ── POST /v1/signals/ingest (Bearer API_TOKEN or ?secret=CRON_SECRET)
+Windows MT5 bridge (tools/mt5-bridge) ── POST /v1/mt5/sync (Bearer API_TOKEN, read-only)
 ```
 
 - **Secrets live only in the API** (and the two server-only web vars
@@ -54,8 +55,10 @@ external producer (main.py) ── POST /v1/signals/ingest (Bearer API_TOKEN or 
 
 ## Jobs (in-process, locked, idempotent)
 
-`check_open`, `check_analysed`, `check_news`, `transitions`, `news_process`,
-`calendar_refresh`, `analyse_pending` — see `apps/api/src/jobs/scheduler.ts`.
+`signalTransitions` (5m), `checkOpenSignals` (10m), `checkAnalysedSignals`
+(10m), `checkNewsSignals` (10m), `analysePending` (10m), `newsSignals` (5m),
+`refreshCalendar` (24h), `backfillCandles` (6h), `evaluateAlerts` (5m) —
+see `apps/api/src/jobs/scheduler.ts`.
 
 Manual trigger: `POST /v1/jobs/:name` with machine secret.
 External-cron fallback (if you prefer system cron):
@@ -73,6 +76,38 @@ External-cron fallback (if you prefer system cron):
 These thin forwarders keep any already-scheduled external cron working.
 Migrate to the `/v1/*` equivalents and delete them when convenient.
 
+## v2 desk endpoints
+
+All under `/v1/*` with the machine bearer (except `/v1/health`).
+
+| Area | Endpoints |
+|---|---|
+| Candle store | `GET /v1/ops/candles` (freshness), `POST /v1/ops/candles/backfill?days=7` |
+| Credit ledger | `GET /v1/ops/credits` (per-key day/minute windows) |
+| AI audit trail | `GET /v1/ops/ai-runs?signal_id=&limit=` — prompt_version, model, latency, tokens per run (success **and** failure) |
+| Journal | `GET /v1/journal`, `GET/PUT /v1/journal/:signalId` (zod-validated: notes/tags/checklist) |
+| Signal events | `GET /v1/signals/:id/events` — state-machine transition log |
+| Read state | `GET/PUT /v1/desk/read-state/:key` — unread badges survive a refresh |
+| Alerts | `GET/POST /v1/alerts/rules`, `PATCH/DELETE /v1/alerts/rules/:id`, `GET /v1/alerts/events`, `POST /v1/alerts/evaluate` |
+| MT5 bridge | `POST /v1/mt5/sync`, `GET /v1/mt5/status` (see `tools/mt5-bridge/README.md`) |
+
+## Degradation matrix
+
+`GET /v1/health` returns a `degradation` object: per-subsystem
+`ok | degraded | down` plus what still works. Summary:
+
+| Down / degraded | What still works |
+|---|---|
+| No Supabase creds | Demo-mode UI, /v1/health, simulated candles; ingest/journal/alerts disabled |
+| No TwelveData key | Simulated candles (labelled SIMULATED); resolution sweep off; backtest 503 |
+| No Groq key | Signals resolve deterministically; LLM verdicts skipped (ai_runs untouched) |
+| No calendar/Finnhub key | News verdicts off; calendar-only risk windows |
+| `JOBS_ENABLED=false` | All jobs via manual `POST /v1/jobs/:name` |
+| No MT5 bridge | Everything except the live-account mirror on `/v1/mt5/status` |
+
+Overall `status` in the same payload: `ok` (all green), `degraded` (any
+degraded), `down` (any hard-down dependency).
+
 ## Producer (TradingView → desk)
 
 ```bash
@@ -88,7 +123,7 @@ Idempotent on `signal_id`. Emits SSE `signal_ingested`.
 npm run typecheck        # web + api + engine + shared
 npm run lint             # 0 errors
 npm run check:contrast   # WCAG AA token gate (3 themes)
-npm run test             # engine vitest (37 tests, golden backtest snapshot)
+npm run test             # engine vitest (101 tests, golden backtest snapshot)
 npm run build            # must pass with NO env (demo-mode boot)
 ```
 

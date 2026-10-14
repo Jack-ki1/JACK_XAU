@@ -9,6 +9,8 @@ import { refreshCalendar } from '../providers/calendar.js';
 import { processNewsSignals } from '../services/news.js';
 import { checkAnalysedSignals, checkNewsSignals, checkOpenSignals } from '../services/resolution.js';
 import { signalTransitions } from '../services/transitions.js';
+import { backfillStandardLadder } from '../services/candles.js';
+import { evaluateAlerts } from '../services/alerts.js';
 import { publish } from '../plugins/sse.js';
 
 interface JobDef {
@@ -25,6 +27,10 @@ const JOBS: JobDef[] = [
   { name: 'analysePending', everyMs: 10 * 60000, run: () => analysePending() },
   { name: 'newsSignals', everyMs: 5 * 60000, run: processNewsSignals },
   { name: 'refreshCalendar', everyMs: 24 * 3600000, run: refreshCalendar },
+  // v2: keep our candle store fresh so backtests never depend on live calls.
+  { name: 'backfillCandles', everyMs: 6 * 3600000, run: () => backfillStandardLadder(7) },
+  // v2 C10: evaluate system + config alerts (deduped via alert_events).
+  { name: 'evaluateAlerts', everyMs: 5 * 60000, run: () => evaluateAlerts() },
 ];
 
 const locks = new Set<string>();

@@ -1,13 +1,15 @@
 // api/services/analysis — LLM verdict pipeline (Groq) + deterministic guards.
 // Ports analyseOneSignal + both trigger paths. Engine owns verdict/RR math;
 // providers/llm owns the HTTP call; this service owns quota/dedup/insert.
-import { computePreferredExit, normalizeVerdict, rrLevelsFor } from '@jack-trade/engine';
+// Every run (success or failure) is appended to ai_runs (v2 C9.2 audit trail).
+import { computePreferredExit } from '@jack-trade/engine';
 import type { SignalRow } from '@jack-trade/shared';
 import { getEnv } from '../config/env.js';
 import { completeVerdict, modelName } from '../providers/llm.js';
 import { analysisKey } from '../providers/twelveData.js';
+import { buildVerdictPrompt, VERDICT_PROMPT_VERSION } from '../prompts/verdict.js';
 import { getDb } from '../repositories/client.js';
-import { bumpUsage, calendarWindow, getSetting, getUsage, highImpact } from '../repositories/repos.js';
+import { bumpUsage, calendarWindow, getSetting, getUsage, highImpact, insertAiRun } from '../repositories/repos.js';
 import { publish } from '../plugins/sse.js';
 
 export const DAILY_LIMIT = 1000;
@@ -59,36 +61,20 @@ async function upcomingEventNote(): Promise<string> {
   return `IMPORTANT: a high-impact economic event is scheduled soon -- ${e.currency ?? ''} ${e.event_name ?? 'economic event'} (impact: ${e.impact ?? 'unknown'}) at ${e.event_time}. Weight this heavily.`;
 }
 
-function buildPrompt(sig: SignalRow, movement: string, calendar: string): string {
-  const rrLevels = rrLevelsFor(sig.signal_type);
-  return `You are reviewing a trading signal from JACK TRADE's own XAUUSD strategy. Judge whether THIS signal genuinely satisfies the strategy's own rules -- do not apply a different technical analysis framework.
-
-Signal:
-- Type: ${sig.signal_type}${sig.path ? ' (' + sig.path + ')' : ''}
-- Direction: ${sig.direction}
-- Entry: ${sig.entry}
-- Grade: ${sig.grade?.value}/${sig.grade?.of} timeframes in agreement
-- Pine's own chosen exit: SL ${sig.exits?.sl}, TP ${sig.exits?.tp}, R:R 1:${sig.risk?.tp_rr ?? sig.exits?.rr_selected}
-- HTF confluence: ${JSON.stringify(sig.htf_confluence ?? [])}
-- Manual entry filter (Precision only): ${JSON.stringify(sig.manual_entry_filter ?? {})}
-
-${movement}
-
-${calendar}
-
-Judge validity based on: does the grade and HTF confluence genuinely support this signal type firing, does the live price movement above still support this direction, and is there imminent news risk? For Precision, does the manual filter show real strength (most conditions true), or is this thin?
-
-IMPORTANT CONSTRAINT on any alternate level you suggest: you do NOT have access to raw structural price data (box highs/lows) beyond what's given above -- Pine's own chosen SL (${sig.exits?.sl}) is the only genuinely real structural reference available to you. If you judge this signal invalid, do NOT invent a different SL price. Instead, only suggest a DIFFERENT R:R ratio from this exact allowed list: [${rrLevels.join(', ')}] -- pick a smaller (more conservative) ratio if the signal looks weak, keeping Pine's own SL and entry unchanged.
-
-Respond with ONLY this JSON, no other text, no markdown fences:
-{"verdict": "valid" or "invalid", "reasoning": "1-2 sentences, referencing specific grade/confluence/filter values above", "preferred_rr": <one number from the allowed list above, or null if valid>}`;
-}
-
 export interface AnalyseOutcome {
   signal_id: string;
   outcome: 'analysed' | 'error' | 'quota_exceeded' | 'already_analysed' | 'toggled_off' | 'missing_config';
   verdict?: 'valid' | 'invalid';
   detail?: string;
+}
+
+/** Append-only ai_runs row; never throws (audit logging must not break analysis). */
+async function logAiRun(row: Record<string, unknown>): Promise<void> {
+  try {
+    await insertAiRun({ provider: 'groq', model: modelName(), prompt_version: VERDICT_PROMPT_VERSION, ...row });
+  } catch {
+    /* audit trail is best-effort */
+  }
 }
 
 export async function analyseOneSignal(sig: SignalRow): Promise<AnalyseOutcome> {
@@ -104,7 +90,8 @@ export async function analyseOneSignal(sig: SignalRow): Promise<AnalyseOutcome> 
 
   try {
     const [movement, calendar] = await Promise.all([priceContext(sig.entry, sig.direction), upcomingEventNote()]);
-    const parsed = normalizeVerdict(await completeVerdict(key, buildPrompt(sig, movement, calendar)));
+    const prompt = buildVerdictPrompt(sig, movement, calendar);
+    const parsed = await completeVerdict(key, prompt);
     await bumpUsage('openrouter_usage', KEY_NAME, 1);
 
     const { tp, rr } = computePreferredExit({
@@ -123,10 +110,18 @@ export async function analyseOneSignal(sig: SignalRow): Promise<AnalyseOutcome> 
       status: 'open',
       direction: sig.direction ?? null,
     });
+    await logAiRun({
+      signal_id: sig.signal_id,
+      input_snapshot: { prompt, movement, calendar },
+      output: { verdict: parsed.verdict, reasoning: parsed.reasoning ?? '', preferred_rr: parsed.preferred_rr ?? null },
+      latency_ms: parsed.run.latencyMs,
+      tokens: parsed.run.tokens,
+    });
     publish({ kind: 'signal_analysed', signal_id: sig.signal_id, verdict: parsed.verdict });
     return { signal_id: sig.signal_id, outcome: 'analysed', verdict: parsed.verdict };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    await logAiRun({ signal_id: sig.signal_id, input_snapshot: { stage: 'failed' }, output: { error: msg } });
     if (/rate limit|resource_exhausted|quota/i.test(msg)) {
       await bumpUsage('openrouter_usage', KEY_NAME, DAILY_LIMIT);
       return { signal_id: sig.signal_id, outcome: 'quota_exceeded', detail: msg };

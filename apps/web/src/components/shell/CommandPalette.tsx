@@ -12,6 +12,7 @@ const ROUTES = [
   { href: '/analysed-signals', label: 'Analysed Signals' },
   { href: '/news-signals', label: 'News Signals' },
   { href: '/performance', label: 'Performance' },
+  { href: '/risk', label: 'Risk Desk' },
   { href: '/backtest', label: 'Backtest' },
   { href: '/analysis', label: 'Analysis' },
   { href: '/settings', label: 'Settings' },

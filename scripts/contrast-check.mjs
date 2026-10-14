@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// scripts/contrast-check.mjs — WCAG 2.1 AA gate for design tokens.
-// Parses apps/web/src/styles/tokens.css, checks every required
-// foreground/background pair for each theme >= 4.5:1 (and >= 3:1 for
-// large-text pairs). Fails the build (CI) on any violation.
-// Run: npm run check:contrast
+// scripts/contrast-check.mjs — WCAG 2.1 AA gate for v2 design tokens.
+// For each theme (daylight/sunrise/aurora):
+//   • every *-text token on --card-solid and --bg-app ≥ 4.5:1
+//   • --on-bright on each *-fill ≥ 4.5:1 (bright fills carry navy text)
+//   • core text pairs ≥ 4.5:1 (decorative --text-3 ≥ 3:1)
+// Fails CI on any violation. Run: npm run check:contrast
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -16,8 +17,8 @@ function parseTheme(name) {
   if (!m) throw new Error(`theme block not found: ${name}`);
   const vars = {};
   for (const [, k, v] of m[1].matchAll(/(--[\w-]+):\s*([^;]+);/g)) vars[k] = v.trim();
-  // resolve var() indirection (e.g. --chart-bg: var(--bg-panel))
-  for (let i = 0; i < 3; i++)
+  // resolve var() indirection (up to 4 hops)
+  for (let i = 0; i < 4; i++)
     for (const [k, v] of Object.entries(vars)) {
       const r = v.match(/^var\((--[\w-]+)\)$/);
       if (r && vars[r[1]]) vars[k] = vars[r[1]];
@@ -26,7 +27,7 @@ function parseTheme(name) {
 }
 
 function hexToRgb(hex) {
-  const h = hex.replace('#', '');
+  const h = String(hex).replace('#', '');
   if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
   return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
 }
@@ -41,28 +42,40 @@ function ratio(fg, bg) {
   return (f + 0.05) / (b + 0.05);
 }
 
+const THEMES = ['daylight', 'sunrise', 'aurora'];
+
 // [foreground, background, minRatio, purpose]
-const PAIRS = [
+const CORE_PAIRS = [
   ['--text-1', '--bg-app', 4.5, 'body text on app bg'],
-  ['--text-1', '--bg-panel', 4.5, 'body text on panel'],
-  ['--text-1', '--bg-raised', 4.5, 'body text on raised'],
-  ['--text-2', '--bg-panel', 4.5, 'secondary text on panel'],
+  ['--text-1', '--card-solid', 4.5, 'body text on card'],
+  ['--text-2', '--card-solid', 4.5, 'secondary text on card'],
   ['--text-2', '--bg-app', 4.5, 'secondary text on app bg'],
-  ['--text-3', '--bg-panel', 3, 'decorative/meta text on panel (min 3:1)'],
-  ['--bull', '--bg-panel', 4.5, 'bull colour on panel'],
-  ['--bear', '--bg-panel', 4.5, 'bear colour on panel'],
-  ['--warn', '--bg-panel', 4.5, 'warn colour on panel'],
-  ['--info', '--bg-panel', 4.5, 'info colour on panel'],
-  ['--accent-blue', '--bg-panel', 4.5, 'accent-blue on panel'],
-  ['--accent-gold', '--bg-panel', 4.5, 'accent-gold on panel'],
-  ['--gold-fg', '--accent-gold', 4.5, 'gold button text on gold bg'],
-  ['--on-accent', '--accent-blue-solid', 4.5, 'primary button text on solid accent'],
+  ['--text-3', '--card-solid', 3, 'decorative text on card (min 3:1)'],
 ];
 
+const TEXT_TOKENS = ['--sky-text', '--orange-text', '--green-text', '--rose-text'];
+const FILL_TOKENS = ['--sky-fill', '--orange-fill', '--green-fill', '--rose-fill'];
+
 let failures = 0;
-for (const theme of ['midnight', 'graphite', 'daylight']) {
+for (const theme of THEMES) {
   const vars = parseTheme(theme);
-  for (const [fgKey, bgKey, min, purpose] of PAIRS) {
+  const checks = [
+    ...CORE_PAIRS,
+    ...TEXT_TOKENS.flatMap((t) => [
+      [t, '--card-solid', 4.5, `${t} on card`],
+      [t, '--bg-app', 4.5, `${t} on app bg`],
+    ]),
+    ...FILL_TOKENS.map((f) => ['--on-bright', f, 4.5, `--on-bright on ${f}`]),
+    ['--bull', '--card-solid', 4.5, 'bull on card'],
+    ['--bear', '--card-solid', 4.5, 'bear on card'],
+    ['--warn', '--card-solid', 4.5, 'warn on card'],
+    ['--info', '--card-solid', 4.5, 'info on card'],
+    // --accent-gold is fills/borders/gradients only (never small text on
+    // white by design); the meaningful pair is button text ON the fill:
+    ['--gold-fg', '--accent-gold', 4.5, 'gold button text on gold bg'],
+    ['--on-accent', '--accent-blue-solid', 4.5, 'primary button text on solid accent'],
+  ];
+  for (const [fgKey, bgKey, min, purpose] of checks) {
     const fgRaw = vars[fgKey];
     const bgRaw = vars[bgKey];
     if (!fgRaw || !bgRaw) {
@@ -78,8 +91,7 @@ for (const theme of ['midnight', 'graphite', 'daylight']) {
       continue;
     }
     const r = ratio(fg, bg);
-    const ok = r >= min;
-    if (!ok) {
+    if (r < min) {
       console.error(`✗ [${theme}] ${purpose}: ${fgKey} on ${bgKey} = ${r.toFixed(2)}:1 (min ${min}:1)`);
       failures++;
     } else {

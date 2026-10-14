@@ -1,0 +1,2 @@
+# MT5 Python integration — Windows only (requires an installed MT5 terminal).
+MetaTrader5>=5.0.45

@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutGrid, Target, CircleCheck, Newspaper, ChartNoAxesColumn,
-  Clock3, Sparkles, Settings, PanelLeftClose, PanelLeftOpen,
+  Clock3, Sparkles, Settings, PanelLeftClose, PanelLeftOpen, ShieldAlert,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type DeskStatus } from '@/lib/apiClient'
@@ -20,6 +20,7 @@ const NAV = [
   { href: '/analysed-signals', label: 'Analysed', Icon: CircleCheck },
   { href: '/news-signals', label: 'News', Icon: Newspaper },
   { href: '/performance', label: 'Performance', Icon: ChartNoAxesColumn },
+  { href: '/risk', label: 'Risk', Icon: ShieldAlert },
   { href: '/backtest', label: 'Backtest', Icon: Clock3 },
   { href: '/analysis', label: 'Analysis', Icon: Sparkles },
   { href: '/settings', label: 'Settings', Icon: Settings },

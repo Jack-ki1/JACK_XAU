@@ -1,9 +1,7 @@
 // api/services/catalog — signals list/get/ingest, settings, calendar reads,
 // closed-signal patterns, performance aggregates. Thin orchestration over repos.
 import type { SignalRow } from '@jack-trade/shared';
-import { getDb } from '../repositories/client.js';
 import { calendarWindow, getSetting, listSignals, listVerdicts, setSetting } from '../repositories/repos.js';
-import { publish } from '../plugins/sse.js';
 
 export async function getSignals(status?: string, limit = 50) {
   const rows = await listSignals(status, Math.min(limit, 1000));
@@ -16,38 +14,12 @@ export async function getVerdicts(table: 'analysed_signals' | 'news_signals', st
 }
 
 export async function ingestSignal(body: unknown) {
-  const db = getDb();
-  if (!db) return { error: 'Database not configured.' };
-  const b = body as Record<string, unknown>;
-  if (typeof b?.signal_id !== 'string' || b.signal_id.length === 0) {
-    return { error: 'signal_id (string) is required.' };
-  }
-  // Idempotent: re-delivery of the same webhook never duplicates.
-  const { data: existing } = await db.from('signals').select('id').eq('signal_id', b.signal_id).maybeSingle();
-  if (existing) return { signal_id: b.signal_id, outcome: 'already_exists' as const };
-  const row: Record<string, unknown> = {
-    signal_id: b.signal_id,
-    symbol: typeof b.symbol === 'string' ? b.symbol : 'XAUUSD',
-    direction: b.direction ?? null,
-    signal_type: b.signal_type ?? null,
-    path: b.path ?? null,
-    entry: typeof b.entry === 'number' ? b.entry : null,
-    exits: typeof b.exits === 'object' && b.exits !== null ? b.exits : {},
-    risk: typeof b.risk === 'object' && b.risk !== null ? b.risk : {},
-    grade: typeof b.grade === 'object' && b.grade !== null ? b.grade : {},
-    htf_confluence: Array.isArray(b.htf_confluence) ? b.htf_confluence : [],
-    htf_rung: b.htf_rung ?? null,
-    execution_tf: b.execution_tf ?? null,
-    manual_entry_filter: typeof b.manual_entry_filter === 'object' ? b.manual_entry_filter : null,
-    window_info: typeof b.window_info === 'object' ? b.window_info : null,
-    signal_version: b.signal_version ?? null,
-    status: 'open',
-  };
-  const { data, error } = await db.from('signals').insert(row).select().maybeSingle();
-  if (error) return { error: error.message };
-  const id = (data as { id: number } | null)?.id ?? null;
-  publish({ kind: 'signal_ingested', signal_id: b.signal_id });
-  return { signal_id: b.signal_id, outcome: 'ingested' as const, id };
+  // v2: hardened path — zod validation, state machine, event log.
+  // Kept as a thin delegate so the legacy route shape stays stable.
+  const { ingest } = await import('./pipeline.js');
+  const result = await ingest(body, 'http');
+  if (!result.ok) return { error: result.reason, issues: result.issues };
+  return { signal_id: result.signal_id, outcome: result.outcome, id: result.id };
 }
 
 export async function getSettings() {

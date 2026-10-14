@@ -11,6 +11,7 @@ import { signalRoutes } from './routes/v1/signals.js';
 import { opsRoutes } from './routes/v1/ops.js';
 import { reportRoutes } from './routes/v1/reports.js';
 import { deskRoutes } from './routes/v1/desk.js';
+import { mt5Routes } from './routes/v1/mt5.js';
 import { startScheduler } from './jobs/scheduler.js';
 
 const env = getEnv();
@@ -32,6 +33,7 @@ await app.register(signalRoutes);
 await app.register(opsRoutes);
 await app.register(reportRoutes);
 await app.register(deskRoutes);
+await app.register(mt5Routes);
 
 app.get('/', async () => ({ service: 'jack-trade-api', health: '/v1/health' }));
 

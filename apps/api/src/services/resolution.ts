@@ -4,7 +4,7 @@
 // `valid` verdict rows sync free from their source signal (llm_sl == Pine SL).
 import { getEnv } from '../config/env.js';
 import { fetchBarsSince, resolutionKey, type TdBar } from '../providers/twelveData.js';
-import { bumpUsage, getUsage, listSignals, listVerdicts, updateSignal, updateVerdict, getSignalBySignalId } from '../repositories/repos.js';
+import { bumpUsage, getUsage, listSignals, listVerdicts, updateSignal, updateVerdict, getSignalBySignalId, appendSignalEvent } from '../repositories/repos.js';
 import { getDb } from '../repositories/client.js';
 import { publish } from '../plugins/sse.js';
 
@@ -84,8 +84,15 @@ export async function checkOpenSignals() {
           tp_hit: r.outcome === 'tp_hit',
           status: 'closed',
           final_outcome: r.outcome,
+          state: r.outcome === 'tp_hit' ? 'closed' : 'stopped',
           resolved_at: resolvedAt.toISOString(),
           time_to_resolution: `${secs} seconds`,
+        });
+        // v2: immutable event log entry (projection above is derivable from this).
+        await appendSignalEvent(sig.signal_id, r.outcome === 'tp_hit' ? 'closed' : 'stopped', {
+          resolvedAt: resolvedAt.toISOString(),
+          sl: sig.exits?.sl ?? null,
+          tp: sig.exits?.tp ?? null,
         });
         closed++;
         results.push({ signal_id: sig.signal_id, outcome: r.outcome });
